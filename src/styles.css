@@ -83,7 +83,11 @@ a { color: inherit; }
 .discover-header { padding: calc(34px + env(safe-area-inset-top)) 18px 18px; }
 .discover-header h1, .events-header h1, .history-header h1, .loyalty-header h1 { margin: 6px 0 12px; font: 600 31px/1.02 'Unbounded', sans-serif; letter-spacing: -.055em; }
 .discover-header p, .loyalty-header p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
-.filter-row { display: flex; flex-wrap: wrap; gap: 7px; padding: 0 18px 19px; }
+.all-filter { margin: 0 18px 13px; padding: 8px 11px; border: 1px solid var(--line); border-radius: 99px; background: transparent; font-size: 10px; font-weight: 700; }
+.all-filter.active { border-color: var(--ink); background: var(--ink); color: #fff; }
+.filter-group { padding: 0 18px 14px; }
+.filter-group > span { display: block; margin-bottom: 7px; color: var(--muted); font-size: 8px; font-weight: 800; text-transform: uppercase; }
+.filter-row { display: flex; flex-wrap: wrap; gap: 7px; }
 .filter-row button, .capability-row span, .menu-tabs button { padding: 8px 11px; border: 1px solid var(--line); border-radius: 99px; background: transparent; font-size: 10px; font-weight: 700; }
 .filter-row button.active, .menu-tabs button.active { border-color: var(--ink); background: var(--ink); color: #fff; }
 .restaurant-list { padding: 0 12px 24px; }
@@ -111,11 +115,13 @@ a { color: inherit; }
 .cover-back, .cover-heart { position: absolute; top: calc(18px + env(safe-area-inset-top)); }
 .cover-back { left: 15px; }
 .cover-heart { right: 15px; }
+.cover-heart.saved { border-color: var(--acid); background: var(--acid); color: var(--ink); }
 .restaurant-title { position: absolute; inset: auto 18px 21px; }
 .restaurant-title > span { font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 .restaurant-title h1 { margin: 5px 0 9px; font: 600 34px/1 'Unbounded', sans-serif; letter-spacing: -.06em; }
 .restaurant-title p { display: flex; align-items: center; gap: 5px; margin: 0; font-size: 11px; }
 .restaurant-content { padding: 22px 18px 30px; }
+.saved-note { display: flex; gap: 7px; align-items: center; margin: -5px 0 14px; padding: 10px 12px; border-radius: 12px; background: #e5f89e; font-size: 9px; font-weight: 800; }
 .lead-copy { margin: 0 0 16px; font-size: 15px; line-height: 1.45; }
 .capability-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
 .restaurant-content > .primary-button { margin: 4px 0 18px; }
@@ -208,7 +214,9 @@ a { color: inherit; }
 .menu-tabs { display: flex; gap: 6px; padding: 0 18px 18px; }
 .dish-list { padding: 0 12px 28px; }
 .dish-card { display: grid; grid-template-columns: 118px 1fr; width: 100%; margin-bottom: 9px; overflow: hidden; border-radius: 17px; background: #fff; text-align: left; }
-.dish-card > img { width: 118px; height: 100%; min-height: 170px; object-fit: cover; }
+.dish-card-visual { position: relative; width: 118px; min-height: 170px; overflow: hidden; }
+.dish-card-visual > img { width: 100%; height: 100%; object-fit: cover; }
+.dish-card-visual > small { position: absolute; inset: auto 7px 7px; padding: 4px 6px; border-radius: 99px; background: rgba(20,19,17,.75); color: #fff; font-size: 6px; font-weight: 800; text-transform: uppercase; }
 .dish-card > div { display: flex; min-width: 0; padding: 13px; flex-direction: column; }
 .dish-card small { color: #6b7d34; font-size: 8px; font-weight: 700; }
 .dish-card strong { margin: 5px 0; font: 600 15px/1.12 'Unbounded', sans-serif; letter-spacing: -.035em; }
@@ -220,6 +228,7 @@ a { color: inherit; }
 .menu-readonly p, .empty-state p { margin: 0 0 22px; color: var(--muted); font-size: 11px; line-height: 1.5; }
 .dish-hero { position: relative; height: 440px; }
 .dish-hero > img { width: 100%; height: 100%; object-fit: cover; }
+.dish-hero > span { position: absolute; right: 14px; bottom: 14px; padding: 6px 8px; border-radius: 99px; background: rgba(20,19,17,.75); color: #fff; font-size: 7px; font-weight: 800; text-transform: uppercase; }
 .dish-copy { padding: 24px 18px 0; }
 .dish-copy h1 { margin: 6px 0 12px; font: 600 30px/1.04 'Unbounded', sans-serif; letter-spacing: -.05em; }
 .dish-copy > p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
@@ -248,7 +257,10 @@ a { color: inherit; }
 .service-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 10px; }
 .service-tabs button { display: flex; min-height: 64px; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--line); border-radius: 14px; background: transparent; font-size: 10px; font-weight: 800; }
 .service-tabs button.selected { background: var(--ink); color: #fff; }
+.service-option { display: flex; min-height: 64px; align-items: center; gap: 8px; margin-top: 10px; padding: 0 15px; border-radius: 14px; background: var(--ink); color: #fff; font-size: 11px; font-weight: 800; }
+.service-option small { margin-left: auto; color: #c9c6bd; font-size: 8px; font-weight: 600; text-align: right; }
 .checkout-row { display: flex; align-items: center; justify-content: space-between; width: calc(100% - 36px); margin: 0 18px; padding: 16px 0; border-top: 1px solid var(--line); background: transparent; text-align: left; }
+.checkout-row.chosen > svg { color: #688a17; }
 .checkout-row div { display: flex; flex-direction: column; }
 .checkout-row small, .payment-card small { color: var(--muted); font-size: 8px; text-transform: uppercase; }
 .checkout-row strong, .payment-card strong { margin-top: 3px; font-size: 11px; }
@@ -259,6 +271,7 @@ a { color: inherit; }
 .restore-card div, .receipt div { display: flex; flex-direction: column; }
 .restore-card strong, .receipt strong { font-size: 12px; }
 .restore-card span, .receipt span, .receipt small { margin-top: 3px; color: var(--muted); font-size: 9px; }
+.sticky-primary:disabled { cursor: not-allowed; background: #b8b4aa; color: #f5f2e9; }
 
 .loyalty-header { padding-bottom: 16px; }
 .loyalty-card { position: relative; min-height: 335px; margin: 0 18px 23px; padding: 18px; overflow: hidden; border-radius: 25px; background: var(--ink); color: #fff; }
@@ -278,7 +291,7 @@ a { color: inherit; }
 .rules-card a { display: inline-flex; gap: 6px; align-items: center; margin-top: 8px; font-size: 10px; font-weight: 800; }
 .brand-dots { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 18px 27px; }
 .brand-dots span { padding: 7px 9px; border-radius: 99px; background: #e2ded3; font-size: 8px; font-weight: 700; }
-.profile-card { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; margin: 0 18px 26px; padding: 15px; border-radius: 17px; background: #fff; }
+.profile-card { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; margin: 0 18px 26px; padding: 15px; border-radius: 17px; background: #fff; }
 .profile-card > div { display: grid; width: 44px; height: 44px; place-items: center; border-radius: 50%; background: var(--acid); font-weight: 800; }
 .profile-card span { display: flex; flex-direction: column; }
 .profile-card strong { font-size: 11px; }

@@ -12,10 +12,12 @@ test('hash route keeps a deep-link state after reload', () => {
 test('carts stay isolated by restaurant', () => {
   const choDish = dishes.find((dish) => dish.restaurantId === 'cho')!
   const birdDish = dishes.find((dish) => dish.restaurantId === 'ptichka')!
-  const carts = addLine(addLine(emptyCarts(), choDish), birdDish)
+  const katenkaDish = dishes.find((dish) => dish.restaurantId === 'katenka')!
+  const carts = addLine(addLine(addLine(emptyCarts(), choDish), birdDish), katenkaDish)
   assert.equal(carts.cho.length, 1)
   assert.equal(carts.ptichka.length, 1)
-  assert.equal(carts.katenka.length, 0)
+  assert.equal(carts.katenka.length, 1)
+  assert.equal(carts.besame.length, 0)
 })
 
 test('cart total and quantity recovery preserve the order', () => {

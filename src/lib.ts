@@ -65,7 +65,7 @@ export const restaurants: Restaurant[] = [
     moods: ['Гости города', 'Русская кухня', 'Тихий вечер'],
     description: 'Современное прочтение традиций вкуса и гостеприимства Екатеринодара.',
     capabilities: ['Столик', 'Меню', 'Доставка', 'Торты'],
-    ordering: false,
+    ordering: true,
   },
   {
     id: 'besame',
@@ -86,10 +86,10 @@ export const dishes: Dish[] = [
   {
     id: 'sirena',
     restaurantId: 'cho',
-    name: 'Тартар Sirena',
-    description: 'Мраморная говядина и фри из батата. Позиция названа на официальном сайте.',
+    name: 'Тартар из мраморной говядины с фри из батата',
+    description: 'Название позиции подтверждено официальным сайтом; цена в концепции демонстрационная.',
     price: 890,
-    image: 'assets/cho-dish.webp',
+    image: 'assets/cho-cho.webp',
     available: true,
   },
   {
@@ -116,8 +116,26 @@ export const dishes: Dish[] = [
     name: 'Сезонная позиция',
     description: 'Демонстрационная позиция для сценария заказа.',
     price: 590,
-    image: 'assets/katenka.webp',
+    image: 'assets/ptichka.webp',
     available: false,
+  },
+  {
+    id: 'katenka-pie-demo',
+    restaurantId: 'katenka',
+    name: 'Раздел «Пироги ручной работы»',
+    description: 'Демонстрационная позиция из раздела официального меню; состав и цена не воспроизводятся.',
+    price: 740,
+    image: 'assets/katenka.webp',
+    available: true,
+  },
+  {
+    id: 'katenka-sweet-demo',
+    restaurantId: 'katenka',
+    name: 'Раздел «Сладости»',
+    description: 'Демонстрационная позиция для отдельной корзины ресторана.',
+    price: 520,
+    image: 'assets/katenka.webp',
+    available: true,
   },
 ]
 
