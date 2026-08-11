@@ -60,7 +60,7 @@ export function CasePage() {
             ].map(([name, copy, image]) => <div className="brand-row" key={name}><img src={asset(image)} alt="" /><div><strong>{name}</strong><span>{copy}</span></div></div>)}
           </div>
           <div className="fact-card">
-            <span>Проверено 10.08.2026</span>
+            <span>Проверено 11.08.2026</span>
             <h3>Публичные источники подтверждают участие всех четырёх ресторанов в программе.</h3>
             <ul><li>1 бонус = 1 рубль.</li><li>Кешбэк от 3% до 10% по числу визитов.</li><li>Оплата бонусами — до 20% покупки.</li></ul>
             <small>Условия взяты с официальной страницы программы. Применение правил требует сверки с действующей офертой на момент запуска.</small>
@@ -71,14 +71,14 @@ export function CasePage() {
       <Chapter id="c2" number="02" eyebrow="Публичный цифровой путь" title="Интерес уже есть. Действие распределено между сайтами, телефоном и приложением." tone="ink">
         <div className="evidence-grid">
           <div><b>01</b><strong>Выбор</strong><p>У каждого ресторана свой сайт и визуальный язык. Пользователю нужно заранее знать, какое заведение искать.</p></div>
-          <div><b>02</b><strong>Действие</strong><p>Меню, доставка, бронь, торты и афиша представлены по-разному. Это наблюдение о публичном пути, а не о внутренних системах.</p></div>
+          <div><b>02</b><strong>Действие</strong><p>Меню, доставка, бронь, торты и афиша представлены по-разному. Наблюдение относится к публичному пути; внутренние системы не изучались.</p></div>
           <div><b>03</b><strong>Карта</strong><p>Приложение «ЧОткая карта» обновлено 3 августа 2026 года. Публичное описание сосредоточено на лояльности.</p></div>
           <div><b>04</b><strong>Отзывы</strong><p>В российской ленте App Store найден один текстовый отзыв — положительный. Выборка слишком мала для вывода о системных проблемах.</p></div>
         </div>
-        <div className="hypothesis-line"><Sparkles /><p><strong>Гипотеза для проверки:</strong> начать с повода и атмосферы может быть проще, чем сначала выбирать бренд, а потом искать доступное действие.</p></div>
+        <div className="hypothesis-line"><Sparkles /><p><strong>Гипотеза для проверки:</strong> вход через повод и атмосферу может сократить число шагов до подходящего ресторана и доступного действия.</p></div>
       </Chapter>
 
-      <Chapter id="c3" number="03" eyebrow="Основная идея" title="Главный экран отвечает не «что заказать?», а «куда пойти сегодня?»" tone="acid">
+      <Chapter id="c3" number="03" eyebrow="Основная идея" title="Главный экран начинает с вопроса «куда пойти сегодня?»" tone="acid">
         <div className="idea-layout">
           <div className="idea-copy"><p>Редакционная витрина соединяет атмосферу, кухню, повод и события. Внутри ресторана сохраняется его собственный характер и набор доступных действий.</p><ul className="check-list"><li><Check /> Ресторан по свиданию, семейному обеду или шумному вечеру.</li><li><Check /> Событие ведёт прямо к выбору стола.</li><li><Check /> Заказы и корзины не смешиваются между заведениями.</li><li><Check /> Карта лояльности доступна из любой точки пути.</li></ul><DemoLink hash="discover?mood=Свидание">Выбрать по настроению</DemoLink></div>
           <Phone className="home-mock"><div className="mock-head"><small>Краснодар · вечер</small><strong>Куда пойдём?</strong></div><img src={asset('assets/cho-interior.webp')} alt="" /><div className="mock-overlay"><small>Афиша · демосценарий</small><strong>Сначала событие.<br />Потом — столик.</strong></div><div className="mock-tabs"><span>Свидание</span><span>С семьёй</span><span>Шумно</span></div></Phone>
@@ -92,7 +92,7 @@ export function CasePage() {
         </div>
       </Chapter>
 
-      <Chapter id="c5" number="05" eyebrow="Сценарий № 2" title="Афиша заканчивается не чтением, а выбранным столиком." tone="red">
+      <Chapter id="c5" number="05" eyebrow="Сценарий № 2" title="Из афиши — к выбору столика на событие." tone="red">
         <div className="event-case">
           <div className="event-poster"><img src={asset('assets/cho-interior.webp')} alt="Интерьер «Чо-Чо»" /><span>Демонстрационный анонс</span><h3>Живая музыка<br />и ужин</h3></div>
           <div className="event-case-copy"><Ticket size={32} /><h3>Контекст события сохраняется</h3><p>После перехода к бронированию пользователь понимает, ради какого события выбирает время. Сценарий можно измерить отдельно.</p><div className="metric-chips"><span>Переход из события</span><span>Начало брони</span><span>Подтверждение</span></div><DemoLink hash="event?id=live-night">Открыть событие</DemoLink></div>
@@ -133,8 +133,8 @@ export function CasePage() {
 
       <Chapter id="c10" number="10" eyebrow="Следующий шаг" title="Показать прототип лично и выбрать сценарии пилота." tone="ink">
         <div className="contact-layout">
-          <div><p className="contact-lead">ООО «ЭРГОХАВЭН» — аккредитованная ИТ-компания из Краснодара.</p><p>Можно начать с нескольких приоритетных сценариев, проверить их на данных пилота и только затем расширять решение.</p><p>Готовы лично приехать и показать прототип команде.</p></div>
-          <div className="contact-card"><span>Обсудить концепцию</span><a href="mailto:hello@eh.works">hello@eh.works</a><a href="https://eh.works" target="_blank" rel="noreferrer">eh.works</a><DemoLink hash="home">Открыть прототип</DemoLink></div>
+          <div><p className="contact-lead">ООО «ЭРГОХАВЭН» — аккредитованная ИТ-компания из Краснодара.</p><p>Предлагаем начать с пилота по бронированию, переходу из афиши и восстановлению заказа, проверить пути на данных компании и только затем расширять решение.</p><p>Берём на себя продуктовую аналитику, UX/UI-дизайн, разработку, интеграции, публикацию, обновления и техническую поддержку.</p><p>Готовы лично приехать и показать прототип команде.</p></div>
+          <div className="contact-card"><span>Обсудить концепцию</span><a href="mailto:hello@eh.works">hello@eh.works</a><a href="https://eh.works" target="_blank" rel="noreferrer">eh.works</a><a href="https://t.me/andrey_ergohaven" target="_blank" rel="noreferrer">Telegram · @andrey_ergohaven</a><a href="https://max.ru/id5041212966_biz" target="_blank" rel="noreferrer">MAX · +7 988 154-04-00</a><DemoLink hash="home">Открыть прототип</DemoLink></div>
         </div>
         <footer className="case-footer"><span>Инициативная концепция ООО «ЭРГОХАВЭН», созданная на основе открытых данных.</span><span>Не является официальным продуктом «Чотких ресторанов».</span></footer>
       </Chapter>

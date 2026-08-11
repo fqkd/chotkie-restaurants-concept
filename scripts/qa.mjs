@@ -20,6 +20,18 @@ async function waitForServer(url) {
   throw new Error(`Сервер не ответил: ${url}`)
 }
 
+async function fetchExternal(url) {
+  let lastError
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(15_000) })
+    } catch (error) {
+      lastError = error
+    }
+  }
+  throw lastError
+}
+
 if (!remoteBase) {
   preview = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--host', '127.0.0.1', '--port', '4273', '--strictPort'], { stdio: ['ignore', 'pipe', 'pipe'] })
   await waitForServer(base)
@@ -74,7 +86,9 @@ for (const href of new Set(links)) {
 const contactLinks = await linkPage.locator('.contact-card a').evaluateAll((anchors) => anchors.map((anchor) => anchor.getAttribute('href')))
 if (!contactLinks.includes('mailto:hello@eh.works')) throw new Error('В финальном блоке нет mailto:hello@eh.works')
 if (!contactLinks.includes('https://eh.works')) throw new Error('В финальном блоке нет https://eh.works')
-const ehResponse = await fetch('https://eh.works', { redirect: 'follow' })
+if (!contactLinks.includes('https://t.me/andrey_ergohaven')) throw new Error('В финальном блоке нет Telegram @andrey_ergohaven')
+if (!contactLinks.includes('https://max.ru/id5041212966_biz')) throw new Error('В финальном блоке нет MAX +7 988 154-04-00')
+const ehResponse = await fetchExternal('https://eh.works')
 report.links.push({ href: 'mailto:hello@eh.works', status: 'syntax-ok', hasRoot: false })
 report.links.push({ href: 'https://eh.works', status: ehResponse.status, hasRoot: false })
 if (!ehResponse.ok) throw new Error(`eh.works: HTTP ${ehResponse.status}`)
