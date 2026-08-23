@@ -41,6 +41,7 @@ import {
   type Restaurant,
   type RestaurantId,
 } from './lib'
+import { LocationMap } from './LocationMap'
 
 const asset = (path: string) => `${import.meta.env.BASE_URL}${path}`
 
@@ -218,6 +219,11 @@ function HomePage() {
 
 function DiscoverPage({ mood }: { mood?: string | null }) {
   const [loading, setLoading] = useState(true)
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState<RestaurantId>(
+    mood && ({ 'Свидание': 'besame', 'С семьёй': 'ptichka', 'Шумный вечер': 'cho', 'Показать город': 'katenka' } as Record<string, RestaurantId>)[mood]
+      ? ({ 'Свидание': 'besame', 'С семьёй': 'ptichka', 'Шумный вечер': 'cho', 'Показать город': 'katenka' } as Record<string, RestaurantId>)[mood]
+      : 'cho',
+  )
   useEffect(() => {
     setLoading(true)
     const timer = window.setTimeout(() => setLoading(false), 550)
@@ -260,6 +266,21 @@ function DiscoverPage({ mood }: { mood?: string | null }) {
         <button className={`all-filter ${!mood ? 'active' : ''}`} onClick={() => go('discover')}>Все рестораны</button>
         <FilterRow label="По поводу" items={['Свидание', 'С семьёй', 'Шумный вечер', 'Показать город']} />
         <FilterRow label="По кухне" items={['Мировая кухня', 'Блюда из птицы', 'Русская кухня', 'Испано-французская']} />
+        <LocationMap
+          points={restaurants.map((restaurant) => ({
+            id: restaurant.id,
+            name: restaurant.name,
+            address: `Краснодар, ${restaurant.address}`,
+            city: 'Краснодар',
+            district: restaurant.district,
+            meta: restaurant.eyebrow,
+            lat: restaurant.lat,
+            lng: restaurant.lng,
+          }))}
+          selectedId={selectedRestaurantId}
+          onSelect={(point) => setSelectedRestaurantId(point.id as RestaurantId)}
+          title="Все четыре ресторана"
+        />
         {loading ? (
           <div className="skeleton-list" aria-label="Загрузка ресторанов">
             {[1, 2, 3].map((item) => <div className="skeleton-card" key={item}><span /><i /><i /></div>)}

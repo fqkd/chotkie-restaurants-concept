@@ -5,6 +5,9 @@ export type Restaurant = {
   name: string
   eyebrow: string
   address: string
+  lat: number
+  lng: number
+  district: string
   image: string
   accent: string
   text: string
@@ -33,6 +36,9 @@ export const restaurants: Restaurant[] = [
     name: 'Чо-Чо',
     eyebrow: 'Бодрый ресторан',
     address: 'ул. Дальняя, 41/1',
+    lat: 45.060955,
+    lng: 38.963671,
+    district: 'Фестивальный микрорайон',
     image: 'assets/cho-cho.webp',
     accent: '#d8ff3e',
     text: '#151515',
@@ -46,6 +52,9 @@ export const restaurants: Restaurant[] = [
     name: 'Птичка-Невеличка',
     eyebrow: 'Легко и жизнерадостно',
     address: 'ул. Красная, 133А',
+    lat: 45.042018,
+    lng: 38.976598,
+    district: 'Центральный микрорайон',
     image: 'assets/ptichka.webp',
     accent: '#f7c514',
     text: '#111111',
@@ -59,6 +68,9 @@ export const restaurants: Restaurant[] = [
     name: 'Катенька-Катюша',
     eyebrow: 'Кухня прекрасного города',
     address: 'ул. Красная, 16',
+    lat: 45.018162,
+    lng: 38.968459,
+    district: 'Исторический центр',
     image: 'assets/katenka.webp',
     accent: '#c42531',
     text: '#ffffff',
@@ -72,6 +84,9 @@ export const restaurants: Restaurant[] = [
     name: 'Bésame mucho',
     eyebrow: 'Сиеста и любовь',
     address: 'ул. Красная, 78',
+    lat: 45.029713,
+    lng: 38.972450,
+    district: 'Исторический центр',
     image: 'assets/besame.webp',
     accent: '#df725e',
     text: '#ffffff',

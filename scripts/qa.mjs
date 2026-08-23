@@ -119,12 +119,25 @@ async function scenario(name, run) {
   await page.close()
 }
 
+await scenario('карта → поиск → пустое состояние → геолокация', async (page) => {
+  await page.context().grantPermissions(['geolocation'], { origin: new URL(base).origin })
+  await page.context().setGeolocation({ latitude: 45.035, longitude: 38.974 })
+  await page.goto(`${base}/#discover`, { waitUntil: 'networkidle' })
+  const map = page.getByLabel('Все четыре ресторана')
+  await map.getByLabel('Поиск точки').fill('несуществующий ресторан')
+  await map.getByText('Ничего не найдено').waitFor()
+  await map.getByLabel('Поиск точки').fill('Красная, 78')
+  await map.locator('.eh-location-list button').filter({ hasText: 'Bésame mucho' }).click()
+  await map.getByRole('button', { name: /Рядом со мной/ }).click()
+  await map.getByText('Расстояния рассчитаны от вашего положения').waitFor()
+})
+
 await scenario('повод → ресторан → бронирование → подтверждение', async (page) => {
   await page.goto(`${base}/#home`, { waitUntil: 'networkidle' })
   await page.getByRole('button', { name: /Свидание/ }).click()
   await page.waitForTimeout(650)
   if (await page.locator('.restaurant-list-card').count() !== 1) throw new Error('Фильтр по поводу не сузил список ресторанов')
-  await page.getByRole('button', { name: /Bésame mucho/ }).click()
+  await page.locator('.restaurant-list-card').filter({ hasText: 'Bésame mucho' }).click()
   await page.getByRole('button', { name: 'Забронировать для свидания' }).click()
   await page.getByRole('button', { name: '20:00' }).click()
   await page.getByRole('button', { name: /Продолжить/ }).click()
