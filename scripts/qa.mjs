@@ -56,9 +56,17 @@ async function inspect(path, width, height, name) {
   await page.close()
 }
 
-for (const width of [360, 390, 430]) await inspect('/#home', width, 844, 'prototype')
+for (const { width, height } of [
+  { width: 360, height: 800 },
+  { width: 390, height: 844 },
+  { width: 430, height: 932 },
+]) await inspect('/#home', width, height, 'prototype')
 await inspect('/#home', 1440, 900, 'prototype-desktop')
-for (const width of [390, 768, 1440]) await inspect('/case/', width, width === 1440 ? 900 : 1024, 'case')
+for (const { width, height } of [
+  { width: 1366, height: 768 },
+  { width: 1440, height: 900 },
+  { width: 1920, height: 1080 },
+]) await inspect('/case/', width, height, 'case')
 
 for (const path of [
   '/#discover?mood=%D0%A1%D0%B2%D0%B8%D0%B4%D0%B0%D0%BD%D0%B8%D0%B5',
