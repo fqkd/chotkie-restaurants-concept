@@ -81,20 +81,20 @@ export function CasePage() {
       <Chapter id="c3" number="03" eyebrow="Основная идея" title="Главный экран начинает с вопроса «куда пойти сегодня?»" tone="acid">
         <div className="idea-layout">
           <div className="idea-copy"><p>Редакционная витрина соединяет атмосферу, кухню, повод и события. Интерактивная карта показывает четыре подтверждённых адреса и синхронизирована со списком ресторанов.</p><ul className="check-list"><li><Check /> Поиск ресторана по названию, адресу или району.</li><li><Check /> Событие ведёт прямо к выбору стола.</li><li><Check /> Заказы и корзины не смешиваются между заведениями.</li><li><Check /> Карта лояльности доступна из любой точки пути.</li></ul><DemoLink hash="discover?mood=Свидание">Открыть карту и подборку</DemoLink></div>
-          <Phone className="home-mock"><div className="mock-head"><small>Краснодар · вечер</small><strong>Куда пойдём?</strong></div><img src={asset('assets/cho-interior.webp')} alt="" /><div className="mock-overlay"><small>Афиша · демосценарий</small><strong>Сначала событие.<br />Потом — столик.</strong></div><div className="mock-tabs"><span>Свидание</span><span>С семьёй</span><span>Шумно</span></div></Phone>
+          <Phone className="home-mock"><div className="mock-head"><small>Краснодар · вечер</small><strong>Куда пойдём?</strong></div><img src={asset('assets/cho-interior.webp')} alt="" /><div className="mock-overlay"><small>Сценарий события</small><strong>Сначала событие.<br />Потом — столик.</strong></div><div className="mock-tabs"><span>Свидание</span><span>С семьёй</span><span>Шумно</span></div></Phone>
         </div>
       </Chapter>
 
       <Chapter id="c4" number="04" eyebrow="Сценарий № 1" title="Повод → ресторан → дата → время → гости → подтверждение.">
         <div className="scenario-layout">
-          <div className="scenario-copy"><div className="scenario-index">5 экранов</div><p>Пользователь выбирает настроение, видит различия между ресторанами и бронирует без возврата к поиску контактов.</p><div className="route-line"><span>Свидание</span><ArrowRight /><span>Bésame mucho</span><ArrowRight /><span>Столик</span></div><div className="detail-list"><span><CalendarDays />Дата и время</span><span><UsersRound />Количество гостей</span><span><Check />Демо-подтверждение</span></div><DemoLink hash="booking?restaurant=besame">Посмотреть бронирование</DemoLink></div>
-          <div className="phone-pair"><Phone><div className="phone-photo"><img src={asset('assets/besame.webp')} alt="" /><span>Сиеста и любовь</span><strong>Bésame mucho</strong></div><div className="phone-action">Забронировать для свидания</div></Phone><Phone className="phone-back"><div className="calendar-mock"><small>Bésame mucho</small><h3>Когда вас ждать?</h3><div><b>15<br /><i>августа</i></b><b>16<br /><i>августа</i></b><b>17<br /><i>августа</i></b></div><h3>Свободные интервалы</h3><div className="times"><span>19:00</span><span className="active">19:30</span><span>20:00</span></div></div></Phone></div>
+          <div className="scenario-copy"><div className="scenario-index">5 экранов</div><p>Пользователь выбирает настроение, видит различия между ресторанами и бронирует без возврата к поиску контактов.</p><div className="route-line"><span>Свидание</span><ArrowRight /><span>Bésame mucho</span><ArrowRight /><span>Столик</span></div><div className="detail-list"><span><CalendarDays />Дата и время</span><span><UsersRound />Количество гостей</span><span><Check />Запрос отправлен</span></div><DemoLink hash="booking?restaurant=besame">Посмотреть бронирование</DemoLink></div>
+          <div className="phone-pair"><Phone><div className="phone-photo"><img src={asset('assets/besame.webp')} alt="" /><span>Сиеста и любовь</span><strong>Bésame mucho</strong></div><div className="phone-action">Забронировать для свидания</div></Phone><Phone className="phone-back"><div className="calendar-mock"><small>Bésame mucho</small><h3>Когда вас ждать?</h3><div><b>Сегодня</b><b>Завтра</b><b>+2 дня</b></div><h3>Свободные интервалы</h3><div className="times"><span>19:00</span><span className="active">19:30</span><span>20:00</span></div></div></Phone></div>
         </div>
       </Chapter>
 
       <Chapter id="c5" number="05" eyebrow="Сценарий № 2" title="Из афиши — к выбору столика на событие." tone="red">
         <div className="event-case">
-          <div className="event-poster"><img src={asset('assets/cho-interior.webp')} alt="Интерьер «Чо-Чо»" /><span>Демонстрационный анонс</span><h3>Живая музыка<br />и ужин</h3></div>
+          <div className="event-poster"><img src={asset('assets/cho-interior.webp')} alt="Интерьер «Чо-Чо»" /><span>Сценарное событие</span><h3>Живая музыка<br />и ужин</h3></div>
           <div className="event-case-copy"><Ticket size={32} /><h3>Контекст события сохраняется</h3><p>После перехода к бронированию пользователь понимает, ради какого события выбирает время. Сценарий можно измерить отдельно.</p><div className="metric-chips"><span>Переход из события</span><span>Начало брони</span><span>Подтверждение</span></div><DemoLink hash="event?id=live-night">Открыть событие</DemoLink></div>
         </div>
       </Chapter>
@@ -102,7 +102,7 @@ export function CasePage() {
       <Chapter id="c6" number="06" eyebrow="Сценарий № 3" title="Отдельная корзина ресторана переживает ошибку оплаты." tone="ink">
         <div className="recovery-layout">
           <div className="recovery-flow"><span><Utensils />Меню «Чо-Чо»</span><ArrowRight /><span><CreditCard />Оплата</span><ArrowRight /><span className="error-node">Ошибка</span><ArrowRight /><span><RotateCcw />Повтор</span></div>
-          <div className="recovery-copy"><h3>Пользователь не собирает заказ заново</h3><p>Сохраняются позиции, ресторан, способ получения и выбранное время. В прототипе все цены и оплата — демонстрационные.</p><ul className="check-list"><li><Check /> Корзины разных ресторанов не смешиваются.</li><li><Check /> Недоступная позиция видна до оформления.</li><li><Check /> После ошибки есть понятный путь восстановления.</li></ul><DemoLink hash="payment-error?restaurant=cho&demo=1&service=delivery&address=selected&time=1930">Посмотреть восстановление</DemoLink></div>
+          <div className="recovery-copy"><h3>Пользователь не собирает заказ заново</h3><p>Сохраняются позиции, ресторан, способ получения и выбранное время.</p><ul className="check-list"><li><Check /> Корзины разных ресторанов не смешиваются.</li><li><Check /> Недоступная позиция видна до оформления.</li><li><Check /> После ошибки есть понятный путь восстановления.</li></ul><DemoLink hash="payment-error?restaurant=cho&service=delivery&address=selected&time=1930">Посмотреть восстановление</DemoLink></div>
         </div>
       </Chapter>
 
