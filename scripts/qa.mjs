@@ -68,17 +68,33 @@ for (const { width, height } of [
   { width: 1920, height: 1080 },
 ]) await inspect('/case/', width, height, 'case')
 
-for (const path of [
+const regressionPaths = [
   '/#discover?mood=%D0%A1%D0%B2%D0%B8%D0%B4%D0%B0%D0%BD%D0%B8%D0%B5',
+  '/#restaurant?id=cho',
+  '/#restaurant?id=ptichka',
+  '/#restaurant?id=katenka',
+  '/#restaurant?id=besame',
   '/#booking?restaurant=besame',
+  '/#booking-details?restaurant=besame',
+  '/#booking-success?restaurant=besame',
+  '/#events',
   '/#event?id=live-night',
   '/#menu?restaurant=cho&mode=order',
   '/#menu?restaurant=cho&mode=order&category=drinks',
   '/#dish?restaurant=ptichka&id=seasonal',
-  '/#cart?restaurant=besame',
-  '/#payment-error?restaurant=cho&demo=1&service=delivery&address=selected&time=1930',
+  '/#cart?restaurant=cho',
+  '/#checkout?restaurant=cho&address=selected&time=1930',
+  '/#payment-error?restaurant=cho&service=delivery&address=selected&time=1930',
+  '/#order-success?restaurant=cho&service=delivery&time=1930',
   '/#loyalty',
-]) await inspect(path, 390, 844, `deep-${report.pages.length}`)
+  '/#profile',
+  '/#favorites',
+  '/#history',
+]
+for (const { width, height } of [{ width: 360, height: 800 }, { width: 390, height: 844 }, { width: 430, height: 932 }]) {
+  for (const path of regressionPaths) await inspect(path, width, height, `deep-${report.pages.length}`)
+}
+await inspect('/case/', 768, 900, 'case')
 
 const linkPage = await browser.newPage({ viewport: { width: 1440, height: 900 } })
 await linkPage.goto(`${base}/case/`, { waitUntil: 'networkidle' })
@@ -132,8 +148,13 @@ await scenario('карта → поиск → пустое состояние �
   await page.context().setGeolocation({ latitude: 45.035, longitude: 38.974 })
   await page.goto(`${base}/#discover`, { waitUntil: 'networkidle' })
   const map = page.getByLabel('Все четыре ресторана')
+  await map.locator('.leaflet-marker-icon').nth(1).click()
+  if (await map.locator('.eh-location-list > button.active').count() !== 1) throw new Error('Маркер не синхронизировал выбранную карточку')
   await map.getByLabel('Поиск точки').fill('несуществующий ресторан')
   await map.getByText('Ничего не найдено').waitFor()
+  if (await page.getByRole('button', { name: /Выберите ресторан/ }).isEnabled()) throw new Error('CTA активен при пустом поиске')
+  await map.getByRole('button', { name: 'Очистить поиск' }).click()
+  await map.getByText('Найдено ресторанов: 4').waitFor()
   await map.getByLabel('Поиск точки').fill('Красная, 78')
   await map.locator('.eh-location-list button').filter({ hasText: 'Bésame mucho' }).click()
   await map.getByRole('button', { name: /Рядом со мной/ }).click()
@@ -146,11 +167,12 @@ await scenario('повод → ресторан → бронирование →
   await page.waitForTimeout(650)
   if (await page.locator('.restaurant-list-card').count() !== 1) throw new Error('Фильтр по поводу не сузил список ресторанов')
   await page.locator('.restaurant-list-card').filter({ hasText: 'Bésame mucho' }).click()
+  await page.getByRole('button', { name: /Открыть «Bésame mucho»/ }).click()
   await page.getByRole('button', { name: 'Забронировать для свидания' }).click()
   await page.getByRole('button', { name: '20:00' }).click()
   await page.getByRole('button', { name: /Продолжить/ }).click()
-  await page.getByRole('button', { name: 'Подтвердить демобронь' }).click()
-  await page.getByRole('heading', { name: 'Столик выбран' }).waitFor()
+  await page.getByRole('button', { name: 'Отправить запрос' }).click()
+  await page.getByRole('heading', { name: 'Параметры сохранены' }).waitFor()
 })
 
 await scenario('афиша → событие → бронирование', async (page) => {
@@ -168,10 +190,12 @@ await scenario('позиция → корзина → ошибка оплаты 
   await page.reload({ waitUntil: 'networkidle' })
   await page.getByRole('button', { name: /Добавить в корзину/ }).click()
   await page.getByRole('button', { name: /К оформлению/ }).click()
-  if (await page.getByRole('button', { name: 'Выберите адрес и время' }).isEnabled()) throw new Error('Оплата доступна без адреса и времени')
+  if (await page.getByRole('button', { name: /Заполните адрес/ }).isEnabled()) throw new Error('Оплата доступна без адреса и времени')
   await page.getByRole('button', { name: /Выбрать адрес/ }).click()
+  await page.getByRole('button', { name: 'ул. Красная, 120, Краснодар' }).click()
   await page.getByRole('button', { name: /Выбрать время/ }).click()
-  await page.getByRole('button', { name: 'Проверить сценарий оплаты' }).click()
+  await page.getByRole('button', { name: 'Сегодня, 19:30–20:00' }).click()
+  await page.getByRole('button', { name: 'Перейти к оплате' }).click()
   await page.getByRole('heading', { name: 'Оплата не прошла' }).waitFor()
   await page.getByRole('button', { name: 'Вернуться в корзину' }).click()
   await page.getByText('Тартар из мраморной говядины с фри из батата').waitFor()
@@ -190,30 +214,42 @@ await scenario('отдельные корзины ресторанов', async (
   await page.getByRole('button', { name: /Добавить в корзину/ }).click()
   await page.goto(`${base}/#restaurant?id=katenka`, { waitUntil: 'networkidle' })
   await page.getByRole('button', { name: /Заказать/ }).click()
-  await page.getByRole('button', { name: /Раздел «Пироги ручной работы»/ }).click()
+  await page.getByRole('button', { name: /Пирог ручной работы/ }).click()
   await page.getByRole('button', { name: /Добавить в корзину/ }).click()
   await page.goto(`${base}/#cart?restaurant=cho`, { waitUntil: 'networkidle' })
   await page.getByText('Тартар из мраморной говядины с фри из батата').waitFor()
-  if (await page.getByText('Сезонное блюдо из птицы').count()) throw new Error('Корзина «Чо-Чо» содержит позицию другого ресторана')
+  if (await page.getByText('Блюдо из птицы от шефа').count()) throw new Error('Корзина «Чо-Чо» содержит позицию другого ресторана')
   await page.goto(`${base}/#cart?restaurant=ptichka`, { waitUntil: 'networkidle' })
-  await page.getByText('Сезонное блюдо из птицы').waitFor()
+  await page.getByText('Блюдо из птицы от шефа').waitFor()
   if (await page.getByText('Тартар из мраморной говядины с фри из батата').count()) throw new Error('Корзина «Птички-Невелички» содержит позицию другого ресторана')
   await page.goto(`${base}/#cart?restaurant=katenka`, { waitUntil: 'networkidle' })
-  await page.getByText('Раздел «Пироги ручной работы»').waitFor()
+  await page.getByText('Пирог ручной работы').waitFor()
   if (await page.getByText('Тартар из мраморной говядины с фри из батата').count()) throw new Error('Корзина «Катеньки-Катюши» содержит позицию другого ресторана')
 })
 
 await scenario('избранное и состояния меню дают обратную связь', async (page) => {
   await page.goto(`${base}/#restaurant?id=besame`, { waitUntil: 'networkidle' })
+  await page.evaluate(() => localStorage.removeItem('chotkie-favorites'))
+  await page.reload({ waitUntil: 'networkidle' })
   await page.getByRole('button', { name: 'Добавить в избранное' }).click()
-  await page.getByText('Ресторан сохранён в демосессии').waitFor()
+  await page.getByText('Ресторан добавлен в избранное').waitFor()
   await page.getByRole('button', { name: 'Убрать из избранного' }).click()
-  await page.getByText('Ресторан сохранён в демосессии').waitFor({ state: 'detached' })
+  await page.getByText('Ресторан добавлен в избранное').waitFor({ state: 'detached' })
   await page.goto(`${base}/#menu?restaurant=cho&mode=order`, { waitUntil: 'networkidle' })
   await page.getByRole('button', { name: 'Напитки' }).click()
-  await page.getByRole('heading', { name: 'Напитки не добавлены в демоменю' }).waitFor()
+  await page.getByRole('heading', { name: 'В этой категории пока пусто' }).waitFor()
   await page.getByRole('button', { name: 'Вернуться к популярному' }).click()
   await page.getByText('Тартар из мраморной говядины с фри из батата').waitFor()
+})
+
+await scenario('профиль валидирует контакты и открывает избранное', async (page) => {
+  await page.goto(`${base}/#profile`, { waitUntil: 'networkidle' })
+  await page.getByLabel('Телефон').fill('+7 ')
+  if (await page.getByRole('button', { name: 'Сохранить контакты' }).isEnabled()) throw new Error('Профиль сохраняет невалидный телефон')
+  await page.getByLabel('Телефон').fill('+7 900 000-00-00')
+  await page.getByRole('button', { name: 'Сохранить контакты' }).click()
+  await page.getByRole('button', { name: /Избранное/ }).click()
+  await page.getByRole('heading', { name: 'Пока ничего нет' }).waitFor()
 })
 
 await browser.close()
