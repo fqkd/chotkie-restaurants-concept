@@ -42,9 +42,18 @@ import {
   type RestaurantId,
 } from './lib'
 import { LocationMap } from './LocationMap'
-import { bookingDates, brunchOffset, eventDate, formatKrasnodarDate, isFutureBooking } from './schedule'
+import { bookingDates, brunchOffset, eventDate, formatKrasnodarDate, isFutureBooking, orderSlotLabel, upcomingOrderSlots } from './schedule'
 
 const asset = (path: string) => `${import.meta.env.BASE_URL}${path}`
+const deliveryAddresses = {
+  krasnaya: 'ул. Красная, 120, Краснодар',
+  severnaya: 'ул. Северная, 305, Краснодар',
+}
+function deliveryAddress(id?: string | null) {
+  const key = id === 'selected' ? 'krasnaya' : id
+  return key && key in deliveryAddresses ? deliveryAddresses[key as keyof typeof deliveryAddresses] : null
+}
+
 function go(path: string) {
   window.location.hash = path
 }
@@ -561,34 +570,39 @@ function CartPage({ restaurant, lines, setQuantity }: { restaurant: Restaurant; 
   )
 }
 
-function CheckoutPage({ restaurant, lines, addressSelected, time, edit }: { restaurant: Restaurant; lines: Carts[RestaurantId]; addressSelected: boolean; time?: string | null; edit?: string | null }) {
+function CheckoutPage({ restaurant, lines, addressId, time, edit }: { restaurant: Restaurant; lines: Carts[RestaurantId]; addressId?: string | null; time?: string | null; edit?: string | null }) {
   const [name, setName] = useState('Алексей')
   const [phone, setPhone] = useState('+7 900 000-00-00')
   const [payment, setPayment] = useState('Карта •• 2481')
-  const selectedTime = time === '1930'
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 60_000); return () => window.clearInterval(timer) }, [])
+  const selectedAddressId = addressId === 'selected' ? 'krasnaya' : addressId
+  const address = deliveryAddress(addressId)
+  const slots = upcomingOrderSlots(now)
+  const selectedSlot = slots.find((slot) => slot.id === time)
   const total = cartTotal(lines)
   const validContacts = name.trim().length >= 2 && phone.replace(/\D/g, '').length >= 6
-  const route = `checkout?restaurant=${restaurant.id}${addressSelected ? '&address=selected' : ''}${selectedTime ? '&time=1930' : ''}`
-  const ready = addressSelected && selectedTime && total > 0 && validContacts
+  const route = `checkout?restaurant=${restaurant.id}${address ? `&address=${selectedAddressId}` : ''}${selectedSlot ? `&time=${selectedSlot.id}` : ''}`
+  const ready = Boolean(address && selectedSlot && total > 0 && validContacts)
   return (
     <Screen className="checkout-screen">
       <BackHeader title="Оформление" overline={restaurant.name} />
       <section className="checkout-choice"><span className="kicker">Как получить</span><div className="service-option"><MapPin /> Доставка <small>Подтверждена официальным сайтом</small></div></section>
-      <button className={`checkout-row ${addressSelected ? 'chosen' : ''}`} onClick={() => go(`${route}&edit=address`)}><div><small>Адрес доставки</small><strong>{addressSelected ? 'ул. Красная, 120, Краснодар' : 'Выбрать адрес'}</strong></div>{addressSelected ? <Check /> : <ChevronRight />}</button>
-      {edit === 'address' && <div className="choice-sheet" role="dialog" aria-label="Выбор адреса"><b>Куда доставить</b>{['ул. Красная, 120, Краснодар', 'ул. Северная, 305, Краснодар'].map((value) => <button key={value} onClick={() => go(`checkout?restaurant=${restaurant.id}&address=selected${selectedTime ? '&time=1930' : ''}`)}>{value}<Check /></button>)}</div>}
-      <button className={`checkout-row ${selectedTime ? 'chosen' : ''}`} onClick={() => go(`${route}&edit=time`)}><div><small>Интервал</small><strong>{selectedTime ? 'Сегодня, 19:30–20:00' : 'Выбрать время'}</strong></div>{selectedTime ? <Check /> : <ChevronRight />}</button>
-      {edit === 'time' && <div className="choice-sheet" role="dialog" aria-label="Выбор времени"><b>Доступные интервалы</b>{['Сегодня, 19:30–20:00', 'Сегодня, 20:00–20:30'].map((value) => <button key={value} onClick={() => go(`checkout?restaurant=${restaurant.id}${addressSelected ? '&address=selected' : ''}&time=1930`)}>{value}<Check /></button>)}</div>}
+      <button className={`checkout-row ${address ? 'chosen' : ''}`} onClick={() => go(`${route}&edit=address`)}><div><small>Адрес доставки</small><strong>{address || 'Выбрать адрес'}</strong></div>{address ? <Check /> : <ChevronRight />}</button>
+      {edit === 'address' && <div className="choice-sheet" role="dialog" aria-label="Выбор адреса"><b>Куда доставить</b>{Object.entries(deliveryAddresses).map(([id, value]) => <button key={id} onClick={() => go(`checkout?restaurant=${restaurant.id}&address=${id}${selectedSlot ? `&time=${selectedSlot.id}` : ''}`)}>{value}{selectedAddressId === id && <Check />}</button>)}</div>}
+      <button className={`checkout-row ${selectedSlot ? 'chosen' : ''}`} onClick={() => go(`${route}&edit=time`)}><div><small>Интервал</small><strong>{selectedSlot?.label || 'Выбрать время'}</strong></div>{selectedSlot ? <Check /> : <ChevronRight />}</button>
+      {edit === 'time' && <div className="choice-sheet" role="dialog" aria-label="Выбор времени"><b>Доступные интервалы</b>{slots.map((slot) => <button key={slot.id} onClick={() => go(`checkout?restaurant=${restaurant.id}${address ? `&address=${selectedAddressId}` : ''}&time=${slot.id}`)}>{slot.label}{selectedSlot?.id === slot.id && <Check />}</button>)}</div>}
       <button className="checkout-row" onClick={() => go('loyalty')}><div><small>ЧОткая карта</small><strong>Начислить бонусы</strong></div><ChevronRight /></button>
       <div className="payment-card"><CreditCard /><div><small>Способ оплаты</small><select value={payment} onChange={(event) => setPayment(event.target.value)}><option>Карта •• 2481</option><option>При получении</option></select></div><Check /></div>
       <section className="checkout-lines"><h2>Состав заказа</h2>{lines.map((line) => <div key={line.id}><DishArt dish={line} compact /><span><b>{line.name}</b><small>{line.quantity} × {formatMoney(line.price)}</small></span><strong>{formatMoney(line.price * line.quantity)}</strong></div>)}</section>
       <section className="checkout-contacts"><h2>Контакты</h2><label className="field"><span>Имя</span><input value={name} onChange={(event) => setName(event.target.value)} /></label><label className="field"><span>Телефон</span><input inputMode="tel" value={phone} onChange={(event) => setPhone(event.target.value)} /></label></section>
       <div className="order-total"><span>К оплате</span><strong>{formatMoney(total)}</strong></div>
-      <button className="sticky-primary" disabled={!ready} onClick={() => go(`payment-error?restaurant=${restaurant.id}&service=delivery&address=selected&time=1930`)}>{ready ? 'Перейти к оплате' : 'Заполните адрес, время и контакты'}</button>
+      <button className="sticky-primary" disabled={!ready} onClick={() => go(`payment-error?restaurant=${restaurant.id}&service=delivery&address=${selectedAddressId}&time=${selectedSlot?.id}`)}>{ready ? 'Перейти к оплате' : 'Заполните адрес, время и контакты'}</button>
     </Screen>
   )
 }
 
-function PaymentErrorPage({ restaurant, total, time }: { restaurant: Restaurant; total: number; time?: string | null }) {
+function PaymentErrorPage({ restaurant, total, time, addressId }: { restaurant: Restaurant; total: number; time?: string | null; addressId?: string | null }) {
   const displayTotal = total || 1880
   return (
     <Screen className="result-screen error-result">
@@ -596,21 +610,21 @@ function PaymentErrorPage({ restaurant, total, time }: { restaurant: Restaurant;
       <span className="kicker">Платёж отклонён</span>
       <h1>Оплата не прошла</h1>
       <p>Корзина, ресторан, доставка и выбранное время сохранены.</p>
-      <div className="restore-card"><RotateCcw /><div><strong>Можно продолжить без повтора</strong><span>{restaurant.name} · доставка в {time === '1930' ? '19:30' : 'выбранное время'} · {formatMoney(displayTotal)}</span></div></div>
-      <button className="primary-button" onClick={() => go(`order-success?restaurant=${restaurant.id}&service=delivery&time=${time || '1930'}`)}>Повторить оплату</button>
+      <div className="restore-card"><RotateCcw /><div><strong>Можно продолжить без повтора</strong><span>{restaurant.name} · {deliveryAddress(addressId) || 'адрес не выбран'} · {orderSlotLabel(time) || 'время не выбрано'} · {formatMoney(displayTotal)}</span></div></div>
+      <button className="primary-button" onClick={() => go(`order-success?restaurant=${restaurant.id}&service=delivery&address=${addressId || ''}&time=${time || ''}`)}>Повторить оплату</button>
       <button className="secondary-button" onClick={() => go(`cart?restaurant=${restaurant.id}`)}>Вернуться в корзину</button>
     </Screen>
   )
 }
 
-function OrderSuccessPage({ restaurant, total, time, clearCart }: { restaurant: Restaurant; total: number; time?: string | null; clearCart: () => void }) {
+function OrderSuccessPage({ restaurant, total, time, addressId, clearCart }: { restaurant: Restaurant; total: number; time?: string | null; addressId?: string | null; clearCart: () => void }) {
   return (
     <Screen className="result-screen order-result">
       <div className="success-mark"><Check /></div>
       <span className="kicker">Оплата принята</span>
       <h1>Заказ подтверждён</h1>
       <p>Корзина восстановлена после ошибки, заказ сохранён в истории.</p>
-      <div className="receipt"><ReceiptText /><div><small>{restaurant.name}</small><strong>{formatMoney(total)}</strong><span>Доставка · сегодня, {time === '1930' ? '19:30' : 'выбранное время'}</span></div></div>
+      <div className="receipt"><ReceiptText /><div><small>{restaurant.name}</small><strong>{formatMoney(total)}</strong><span>Доставка · {deliveryAddress(addressId) || 'адрес не выбран'} · {orderSlotLabel(time) || 'время не выбрано'}</span></div></div>
       <button className="primary-button" onClick={() => { clearCart(); go('home') }}>На главную</button>
       <button className="secondary-button" onClick={() => go('history')}>История действий</button>
     </Screen>
@@ -736,9 +750,9 @@ export function App() {
     case 'menu': page = <MenuPage restaurant={restaurant} mode={location.params.get('mode')} category={location.params.get('category')} />; break
     case 'dish': page = <DishPage dish={dish} addToCart={addToCart} />; break
     case 'cart': page = <CartPage restaurant={restaurant} lines={carts[restaurant.id]} setQuantity={(id, delta) => setCarts((current) => updateLine(current, restaurant.id, id, delta))} />; break
-    case 'checkout': page = <CheckoutPage restaurant={restaurant} lines={carts[restaurant.id]} addressSelected={location.params.get('address') === 'selected'} time={location.params.get('time')} edit={location.params.get('edit')} />; break
-    case 'payment-error': page = <PaymentErrorPage restaurant={restaurant} total={cartTotal(carts[restaurant.id])} time={location.params.get('time')} />; break
-    case 'order-success': page = <OrderSuccessPage restaurant={restaurant} total={cartTotal(carts[restaurant.id])} time={location.params.get('time')} clearCart={() => setCarts((current) => ({ ...current, [restaurant.id]: [] }))} />; break
+    case 'checkout': page = <CheckoutPage restaurant={restaurant} lines={carts[restaurant.id]} addressId={location.params.get('address')} time={location.params.get('time')} edit={location.params.get('edit')} />; break
+    case 'payment-error': page = <PaymentErrorPage restaurant={restaurant} total={cartTotal(carts[restaurant.id])} time={location.params.get('time')} addressId={location.params.get('address')} />; break
+    case 'order-success': page = <OrderSuccessPage restaurant={restaurant} total={cartTotal(carts[restaurant.id])} time={location.params.get('time')} addressId={location.params.get('address')} clearCart={() => setCarts((current) => ({ ...current, [restaurant.id]: [] }))} />; break
     case 'loyalty': page = <LoyaltyPage />; break
     case 'history': page = <HistoryPage repeatOrder={repeatOrder} />; break
     case 'profile': page = <ProfilePage />; break
