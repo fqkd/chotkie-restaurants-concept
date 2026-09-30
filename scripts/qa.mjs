@@ -177,11 +177,17 @@ await scenario('повод → ресторан → бронирование →
 
 await scenario('афиша → событие → бронирование', async (page) => {
   await page.goto(`${base}/#event?id=live-night`, { waitUntil: 'networkidle' })
+  const liveDate = (await page.locator('.event-facts span').first().innerText()).trim()
   await page.getByRole('button', { name: /Выбрать столик/ }).click()
   await page.getByText(/Живая музыка и ужин/).waitFor()
+  await page.locator('.option-row.dates button.selected').waitFor()
+  if ((await page.locator('.option-row.dates button.selected').innerText()).replace(/\s+/g, ' ').trim() !== liveDate.replace(/\s+/g, ' ')) throw new Error('Дата бронирования не совпадает с датой события')
   await page.goto(`${base}/#event?id=brunch`, { waitUntil: 'networkidle' })
+  const brunchDate = (await page.locator('.event-facts span').first().innerText()).trim()
   await page.getByRole('button', { name: /Выбрать столик/ }).click()
   await page.getByText(/Долгий воскресный завтрак/).waitFor()
+  await page.locator('.option-row.dates button.selected').waitFor()
+  if ((await page.locator('.option-row.dates button.selected').innerText()).replace(/\s+/g, ' ').trim() !== brunchDate.replace(/\s+/g, ' ')) throw new Error('Дата воскресного завтрака не совпадает с бронированием')
 })
 
 await scenario('позиция → корзина → ошибка оплаты → восстановление', async (page) => {

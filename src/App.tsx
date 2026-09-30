@@ -42,9 +42,9 @@ import {
   type RestaurantId,
 } from './lib'
 import { LocationMap } from './LocationMap'
+import { bookingDates, brunchOffset, eventDate, formatKrasnodarDate, isFutureBooking } from './schedule'
 
 const asset = (path: string) => `${import.meta.env.BASE_URL}${path}`
-
 function go(path: string) {
   window.location.hash = path
 }
@@ -59,14 +59,6 @@ function formatGuests(value: number) {
   const word = lastTwo >= 11 && lastTwo <= 14 ? 'гостей' : last === 1 ? 'гость' : last >= 2 && last <= 4 ? 'гостя' : 'гостей'
   return `${value} ${word}`
 }
-
-function formatKrasnodarDate(offsetDays: number) {
-  const date = new Date()
-  date.setUTCDate(date.getUTCDate() + offsetDays)
-  return new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', timeZone: 'Europe/Moscow' }).format(date)
-}
-
-const bookingDates = ['Сегодня', 'Завтра', formatKrasnodarDate(2)]
 
 function readCarts(): Carts {
   try {
@@ -387,13 +379,17 @@ function Stepper({ value, setValue, min = 1, max = 12 }: { value: number; setVal
 }
 
 function BookingPage({ restaurant, booking, setBooking, source, eventId }: { restaurant: Restaurant; booking: BookingState; setBooking: (next: BookingState) => void; source?: string | null; eventId?: string | null }) {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 60_000); return () => window.clearInterval(timer) }, [])
   const eventTime = eventId === 'brunch' ? '11:00' : '19:30'
   const times = source === 'event' ? [eventTime] : ['18:30', '19:00', '19:30', '20:00', '20:30', '21:00']
+  const dateOptions = source === 'event' ? [eventDate(eventId, now)] : bookingDates(now)
+  const validBooking = isFutureBooking(booking.date, booking.time, now, source === 'event' ? eventId : null)
   useEffect(() => {
     const nextTime = times.includes(booking.time) ? booking.time : times[0]
-    const nextDate = bookingDates.includes(booking.date) ? booking.date : bookingDates[0]
+    const nextDate = dateOptions.includes(booking.date) ? booking.date : dateOptions[0]
     if (nextTime !== booking.time || nextDate !== booking.date || booking.restaurantId !== restaurant.id) setBooking({ ...booking, restaurantId: restaurant.id, time: nextTime, date: nextDate })
-  }, [eventId, restaurant.id, source])
+  }, [eventId, restaurant.id, source, dateOptions.join("|")])
   return (
     <Screen className="booking-screen">
       <BackHeader title="Столик" overline={restaurant.name} />
@@ -403,14 +399,14 @@ function BookingPage({ restaurant, booking, setBooking, source, eventId }: { res
         <span className="kicker">01 · день</span>
         <h2>Когда вас ждать?</h2>
         <div className="option-row dates">
-          {bookingDates.map((date) => <button key={date} className={booking.date === date ? 'selected' : ''} onClick={() => setBooking({ ...booking, date })}>{date.replace(' ', '\n')}</button>)}
+          {dateOptions.map((date) => <button key={date} className={booking.date === date ? 'selected' : ''} onClick={() => setBooking({ ...booking, date })}>{date.replace(' ', '\n')}</button>)}
         </div>
       </section>
       <section className="booking-block">
         <span className="kicker">02 · время</span>
         <h2>Свободные интервалы</h2>
         <div className="time-grid">
-          {times.map((time) => <button key={time} className={booking.time === time ? 'selected' : ''} onClick={() => setBooking({ ...booking, time })}>{time}</button>)}
+          {times.map((time) => <button key={time} className={booking.time === time ? 'selected' : ''} disabled={!isFutureBooking(booking.date, time, now, source === 'event' ? eventId : null)} onClick={() => setBooking({ ...booking, time })}>{time}</button>)}
         </div>
         <small className="demo-caption">{source === 'event' ? 'Время закреплено за сценарием события.' : 'Финальную доступность подтвердит ресторан.'}</small>
       </section>
@@ -418,7 +414,7 @@ function BookingPage({ restaurant, booking, setBooking, source, eventId }: { res
         <div><span className="kicker">03 · компания</span><h2>Количество гостей</h2></div>
         <Stepper value={booking.guests} setValue={(guests) => setBooking({ ...booking, guests })} />
       </section>
-      <button className="sticky-primary" onClick={() => go(`booking-details?restaurant=${restaurant.id}${source === 'event' ? `&source=event&event=${eventId || 'live-night'}` : ''}`)}>Продолжить <ArrowRight size={19} /></button>
+      <button className="sticky-primary" disabled={!validBooking} onClick={() => go(`booking-details?restaurant=${restaurant.id}${source === 'event' ? `&source=event&event=${eventId || 'live-night'}` : ''}`)}>Продолжить <ArrowRight size={19} /></button>
     </Screen>
   )
 }
@@ -473,7 +469,7 @@ function EventsPage() {
           <div><small>Чо-Чо · {formatKrasnodarDate(3)}, 19:30</small><strong>Живая музыка и ужин</strong><span>Открыть и выбрать столик <ArrowRight size={16} /></span></div>
         </button>
         <div className="event-list">
-          <button onClick={() => go('event?id=brunch')}><span className="event-date">+4<br /><b>11:00</b></span><div><small>Bésame mucho · {formatKrasnodarDate(4)}</small><strong>Долгий воскресный завтрак</strong></div><ChevronRight /></button>
+          <button onClick={() => go('event?id=brunch')}><span className="event-date">+{brunchOffset()}<br /><b>11:00</b></span><div><small>Bésame mucho · {eventDate('brunch')}</small><strong>Долгий воскресный завтрак</strong></div><ChevronRight /></button>
           <div className="empty-event"><Sparkles /><div><strong>Новых анонсов пока нет</strong><span>Пустое состояние сохраняет доступ к ресторанам и бронированию.</span></div></div>
         </div>
       </Screen>
@@ -486,7 +482,7 @@ function EventPage({ id }: { id?: string | null }) {
   const isBrunch = id === 'brunch'
   const restaurant = findRestaurant(isBrunch ? 'besame' : 'cho')
   const eventTime = isBrunch ? '11:00' : '19:30'
-  const eventDate = formatKrasnodarDate(isBrunch ? 4 : 3)
+  const displayDate = eventDate(id)
   return (
     <Screen className="event-page">
       <div className="event-image">
@@ -498,7 +494,7 @@ function EventPage({ id }: { id?: string | null }) {
         <span className="kicker">{restaurant.name} · повод встретиться</span>
         <h1>{isBrunch ? 'Долгий воскресный завтрак' : 'Живая музыка и ужин'}</h1>
         <p>{isBrunch ? 'Неспешный завтрак с отдельным столиком и фиксированным временем начала.' : 'Вечерний ужин с живой музыкой и фиксированным временем начала.'}</p>
-        <div className="event-facts"><span><CalendarDays /> {eventDate}</span><span><Clock3 /> Начало в {eventTime}</span><span><MapPin /> {restaurant.address}</span></div>
+        <div className="event-facts"><span><CalendarDays /> {displayDate}</span><span><Clock3 /> Начало в {eventTime}</span><span><MapPin /> {restaurant.address}</span></div>
         <button className="primary-button" onClick={() => go(`booking?restaurant=${restaurant.id}&source=event&event=${id || 'live-night'}`)}><CalendarDays /> Выбрать столик</button>
         <button className="secondary-button" onClick={() => go(`restaurant?id=${restaurant.id}`)}>О ресторане</button>
       </div>
@@ -699,7 +695,6 @@ export function App() {
   useEffect(() => {
     window.scrollTo({ top: 0 })
     document.querySelector('.phone-frame')?.scrollTo({ top: 0 })
-    if (/^(15|16|17) августа$/i.test(booking.date)) setBookingState({ ...booking, date: bookingDates[0] })
   }, [location.route, location.params.toString()])
 
   const restaurant = useMemo(() => findRestaurant(location.params.get('restaurant') || location.params.get('id')), [location])
