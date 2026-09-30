@@ -201,7 +201,9 @@ await scenario('позиция → корзина → ошибка оплаты 
   await page.goto(`${base}/#dish?restaurant=cho&id=sirena`, { waitUntil: 'networkidle' })
   await page.evaluate(() => localStorage.removeItem('chotkie-demo-carts'))
   await page.reload({ waitUntil: 'networkidle' })
+  await page.getByRole('button', { name: 'Без соуса' }).click()
   await page.getByRole('button', { name: /Добавить в корзину/ }).click()
+  await page.locator('.cart-line').getByText('Без соуса').waitFor()
   await page.getByRole('button', { name: /К оформлению/ }).click()
   if (await page.getByRole('button', { name: /Заполните адрес/ }).isEnabled()) throw new Error('Оплата доступна без адреса и времени')
   await page.getByRole('button', { name: /Выбрать адрес/ }).click()
@@ -231,6 +233,7 @@ await scenario('позиция → корзина → ошибка оплаты 
   if (await page.locator('.past-order').count() !== 1) throw new Error('Оформленный заказ не записан в историю')
   await page.getByRole('button', { name: 'Повторить заказ' }).click()
   await page.getByText('Тартар из мраморной говядины с фри из батата').waitFor()
+  await page.locator('.cart-line').getByText('Без соуса').waitFor()
   if (!page.url().includes('restaurant=cho')) throw new Error('Повтор открыл корзину другого ресторана')
 })
 

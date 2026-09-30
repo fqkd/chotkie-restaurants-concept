@@ -27,7 +27,7 @@ export type Dish = {
   available: boolean
 }
 
-export type CartLine = Dish & { quantity: number }
+export type CartLine = Dish & { quantity: number; modifier: string }
 export type Carts = Record<RestaurantId, CartLine[]>
 
 export const restaurants: Restaurant[] = [
@@ -160,18 +160,18 @@ export function cartTotal(lines: CartLine[]) {
   return lines.reduce((total, line) => total + line.price * line.quantity, 0)
 }
 
-export function addLine(carts: Carts, dish: Dish): Carts {
+export function addLine(carts: Carts, dish: Dish, modifier = 'Стандартная подача'): Carts {
   const lines = carts[dish.restaurantId]
-  const existing = lines.find((line) => line.id === dish.id)
+  const existing = lines.find((line) => line.id === dish.id && (line.modifier || 'Стандартная подача') === modifier)
   const next = existing
-    ? lines.map((line) => (line.id === dish.id ? { ...line, quantity: line.quantity + 1 } : line))
-    : [...lines, { ...dish, quantity: 1 }]
+    ? lines.map((line) => (line === existing ? { ...line, quantity: line.quantity + 1 } : line))
+    : [...lines, { ...dish, modifier, quantity: 1 }]
   return { ...carts, [dish.restaurantId]: next }
 }
 
-export function updateLine(carts: Carts, restaurantId: RestaurantId, dishId: string, delta: number): Carts {
+export function updateLine(carts: Carts, restaurantId: RestaurantId, dishId: string, delta: number, modifier = 'Стандартная подача'): Carts {
   const next = carts[restaurantId]
-    .map((line) => (line.id === dishId ? { ...line, quantity: line.quantity + delta } : line))
+    .map((line) => (line.id === dishId && (line.modifier || 'Стандартная подача') === modifier ? { ...line, quantity: line.quantity + delta } : line))
     .filter((line) => line.quantity > 0)
   return { ...carts, [restaurantId]: next }
 }

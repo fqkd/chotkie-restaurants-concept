@@ -560,19 +560,19 @@ function MenuPage({ restaurant, mode, category }: { restaurant: Restaurant; mode
   )
 }
 
-function DishPage({ dish, addToCart }: { dish: Dish; addToCart: (dish: Dish) => void }) {
+function DishPage({ dish, addToCart }: { dish: Dish; addToCart: (dish: Dish, modifier: string) => void }) {
   const restaurant = findRestaurant(dish.restaurantId)
   const [modifier, setModifier] = useState('Стандартная подача')
   return (
     <Screen className="dish-page">
       <div className="dish-hero"><DishArt dish={dish} /><button className="icon-button cover-back" onClick={() => window.history.back()} aria-label="Назад"><ArrowLeft /></button></div>
       <div className="dish-copy"><span className="kicker">{restaurant.name} · блюдо</span><h1>{dish.name}</h1><p>{dish.description}</p><div className="dish-price"><strong>{formatMoney(dish.price)}</strong><span>Цена может измениться</span></div><h2>Подача</h2><div className="modifier-row">{['Стандартная подача', 'Без соуса'].map((value) => <button className={modifier === value ? 'active' : ''} key={value} onClick={() => setModifier(value)}>{value}<Check /></button>)}</div></div>
-      {dish.available ? <button className="sticky-primary" onClick={() => { addToCart(dish); go(`cart?restaurant=${dish.restaurantId}`) }}>Добавить в корзину <Plus size={19} /></button> : <button className="sticky-primary disabled" onClick={() => go(`menu?restaurant=${dish.restaurantId}`)}>Выбрать другую позицию</button>}
+      {dish.available ? <button className="sticky-primary" onClick={() => { addToCart(dish, modifier); go(`cart?restaurant=${dish.restaurantId}`) }}>Добавить в корзину <Plus size={19} /></button> : <button className="sticky-primary disabled" onClick={() => go(`menu?restaurant=${dish.restaurantId}`)}>Выбрать другую позицию</button>}
     </Screen>
   )
 }
 
-function CartPage({ restaurant, lines, setQuantity }: { restaurant: Restaurant; lines: Carts[RestaurantId]; setQuantity: (id: string, delta: number) => void }) {
+function CartPage({ restaurant, lines, setQuantity }: { restaurant: Restaurant; lines: Carts[RestaurantId]; setQuantity: (id: string, delta: number, modifier: string) => void }) {
   return (
     <Screen className="cart-screen">
       <BackHeader title="Корзина" overline={restaurant.name} />
@@ -581,7 +581,7 @@ function CartPage({ restaurant, lines, setQuantity }: { restaurant: Restaurant; 
         <div className="empty-state"><ShoppingBag /><h1>Корзина пока пуста</h1><p>Добавьте позицию из меню. Выбор ресторана сохранится.</p><button className="primary-button" onClick={() => go(`menu?restaurant=${restaurant.id}&mode=order`)}>Открыть меню</button></div>
       ) : (
         <>
-          <div className="cart-lines">{lines.map((line) => <div className="cart-line" key={line.id}><DishArt dish={line} compact /><div><strong>{line.name}</strong><span>{formatMoney(line.price)}</span></div><Stepper value={line.quantity} setValue={(next) => setQuantity(line.id, next - line.quantity)} min={0} /></div>)}</div>
+          <div className="cart-lines">{lines.map((line) => <div className="cart-line" key={`${line.id}:${line.modifier}`}><DishArt dish={line} compact /><div><strong>{line.name}</strong><span>{line.modifier || 'Стандартная подача'} · {formatMoney(line.price)}</span></div><Stepper value={line.quantity} setValue={(next) => setQuantity(line.id, next - line.quantity, line.modifier || 'Стандартная подача')} min={0} /></div>)}</div>
           <button className="add-more" onClick={() => go(`menu?restaurant=${restaurant.id}&mode=order`)}><Plus /> Добавить ещё</button>
           <div className="order-total"><span>Итого</span><strong>{formatMoney(cartTotal(lines))}</strong></div>
           <button className="sticky-primary" onClick={() => go(`checkout?restaurant=${restaurant.id}`)}>К оформлению <ArrowRight /></button>
@@ -615,7 +615,7 @@ function CheckoutPage({ restaurant, lines, addressId, time, edit }: { restaurant
       {edit === 'time' && <div className="choice-sheet" role="dialog" aria-label="Выбор времени"><b>Доступные интервалы</b>{slots.map((slot) => <button key={slot.id} onClick={() => go(`checkout?restaurant=${restaurant.id}${address ? `&address=${selectedAddressId}` : ''}&time=${slot.id}`)}>{slot.label}{selectedSlot?.id === slot.id && <Check />}</button>)}</div>}
       <button className="checkout-row" onClick={() => go('loyalty')}><div><small>ЧОткая карта</small><strong>Начислить бонусы</strong></div><ChevronRight /></button>
       <div className="payment-card"><CreditCard /><div><small>Способ оплаты</small><select value={payment} onChange={(event) => setPayment(event.target.value)}><option>Карта •• 2481</option><option>При получении</option></select></div><Check /></div>
-      <section className="checkout-lines"><h2>Состав заказа</h2>{lines.map((line) => <div key={line.id}><DishArt dish={line} compact /><span><b>{line.name}</b><small>{line.quantity} × {formatMoney(line.price)}</small></span><strong>{formatMoney(line.price * line.quantity)}</strong></div>)}</section>
+      <section className="checkout-lines"><h2>Состав заказа</h2>{lines.map((line) => <div key={`${line.id}:${line.modifier}`}><DishArt dish={line} compact /><span><b>{line.name}</b><small>{line.modifier || 'Стандартная подача'} · {line.quantity} × {formatMoney(line.price)}</small></span><strong>{formatMoney(line.price * line.quantity)}</strong></div>)}</section>
       <section className="checkout-contacts"><h2>Контакты</h2><label className="field"><span>Имя</span><input value={name} onChange={(event) => setName(event.target.value)} /></label><label className="field"><span>Телефон</span><input inputMode="tel" value={phone} onChange={(event) => setPhone(event.target.value)} /></label></section>
       <div className="order-total"><span>К оплате</span><strong>{formatMoney(total)}</strong></div>
       <button className="sticky-primary" disabled={!ready} onClick={() => go(`payment-error?restaurant=${restaurant.id}&service=delivery&address=${selectedAddressId}&time=${selectedSlot?.id}`)}>{ready ? 'Перейти к оплате' : 'Заполните адрес, время и контакты'}</button>
@@ -690,7 +690,7 @@ function HistoryPage({ orders, repeatOrder }: { orders: OrderRecord[]; repeatOrd
     <>
       <Screen className="history-screen">
         <header className="history-header"><span className="kicker">Моё</span><h1>История и быстрый возврат</h1></header>
-        <section className="history-section"><h2>Заказы</h2>{orders.length ? orders.map((order) => <div className="past-order" key={order.id}><div className="past-top"><span><strong>{findRestaurant(order.restaurantId).name}</strong><small>{new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: 'numeric', month: 'long' }).format(new Date(order.createdAt))} · доставка</small></span><b>{formatMoney(order.total)}</b></div><p><Check /> {order.lines.map((line) => `${line.quantity} × ${line.name}`).join(', ')}</p><button className="primary-button" onClick={() => repeatOrder(order)}><RotateCcw /> Повторить заказ</button></div>) : <div className="empty-state"><ReceiptText /><h1>Заказов пока нет</h1><p>Когда оформите заказ в прототипе, он появится здесь.</p><button className="primary-button" onClick={() => go('discover')}>Выбрать ресторан</button></div>}</section>
+        <section className="history-section"><h2>Заказы</h2>{orders.length ? orders.map((order) => <div className="past-order" key={order.id}><div className="past-top"><span><strong>{findRestaurant(order.restaurantId).name}</strong><small>{new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: 'numeric', month: 'long' }).format(new Date(order.createdAt))} · доставка</small></span><b>{formatMoney(order.total)}</b></div><p><Check /> {order.lines.map((line) => `${line.quantity} × ${line.name}${line.modifier && line.modifier !== 'Стандартная подача' ? ` (${line.modifier.toLowerCase()})` : ''}`).join(', ')}</p><button className="primary-button" onClick={() => repeatOrder(order)}><RotateCcw /> Повторить заказ</button></div>) : <div className="empty-state"><ReceiptText /><h1>Заказов пока нет</h1><p>Когда оформите заказ, он появится здесь.</p><button className="primary-button" onClick={() => go('discover')}>Выбрать ресторан</button></div>}</section>
         <section className="history-section last-section"><h2>Попробовать в следующий раз</h2><button className="visit-card" onClick={() => go('restaurant?id=besame')}><img src={asset('assets/besame.webp')} alt="" /><div><small>Рекомендация другого ресторана</small><strong>Bésame mucho</strong><span>Свидание и долгий завтрак</span></div><ChevronRight /></button></section>
       </Screen>
       <BottomNav active="profile" />
@@ -755,8 +755,8 @@ export function App() {
     setCarts(seeded)
   }, [carts, location, restaurant.id])
 
-  function addToCart(nextDish: Dish) {
-    setCarts((current) => addLine(current, nextDish))
+  function addToCart(nextDish: Dish, modifier: string) {
+    setCarts((current) => addLine(current, nextDish, modifier))
   }
 
   function setBooking(next: BookingState) {
@@ -768,7 +768,7 @@ export function App() {
     for (const line of order.lines) {
       const currentDish = dishes.find((item) => item.id === line.id && item.restaurantId === order.restaurantId && item.available)
       if (!currentDish) continue
-      for (let count = 0; count < line.quantity; count += 1) next = addLine(next, currentDish)
+      for (let count = 0; count < line.quantity; count += 1) next = addLine(next, currentDish, line.modifier || 'Стандартная подача')
     }
     setCarts(next)
     go(`cart?restaurant=${order.restaurantId}&repeat=1`)
@@ -785,7 +785,7 @@ export function App() {
     case 'event': page = <EventPage id={location.params.get('id')} />; break
     case 'menu': page = <MenuPage restaurant={restaurant} mode={location.params.get('mode')} category={location.params.get('category')} />; break
     case 'dish': page = <DishPage dish={dish} addToCart={addToCart} />; break
-    case 'cart': page = <CartPage restaurant={restaurant} lines={carts[restaurant.id]} setQuantity={(id, delta) => setCarts((current) => updateLine(current, restaurant.id, id, delta))} />; break
+    case 'cart': page = <CartPage restaurant={restaurant} lines={carts[restaurant.id]} setQuantity={(id, delta, modifier) => setCarts((current) => updateLine(current, restaurant.id, id, delta, modifier))} />; break
     case 'checkout': page = <CheckoutPage restaurant={restaurant} lines={carts[restaurant.id]} addressId={location.params.get('address')} time={location.params.get('time')} edit={location.params.get('edit')} />; break
     case 'payment-error': page = <PaymentErrorPage restaurant={restaurant} total={cartTotal(carts[restaurant.id])} time={location.params.get('time')} addressId={location.params.get('address')} />; break
     case 'order-success': page = <OrderSuccessPage restaurant={restaurant} order={orders.find((order) => order.id === location.params.get('id'))} clearCart={() => setCarts((current) => ({ ...current, [restaurant.id]: [] }))} />; break
