@@ -13,7 +13,6 @@ import {
   MapPin,
   Minus,
   Plus,
-  QrCode,
   ReceiptText,
   RotateCcw,
   Search,
@@ -49,6 +48,12 @@ const asset = (path: string) => `${import.meta.env.BASE_URL}${path}`
 const deliveryAddresses = {
   krasnaya: 'ул. Красная, 120, Краснодар',
   severnaya: 'ул. Северная, 305, Краснодар',
+}
+function readProfile(): { name: string; phone: string } {
+  try {
+    const stored = JSON.parse(localStorage.getItem('chotkie-profile') || '{}')
+    return { name: typeof stored.name === 'string' ? stored.name : '', phone: typeof stored.phone === 'string' ? stored.phone : '' }
+  } catch { return { name: '', phone: '' } }
 }
 function deliveryAddress(id?: string | null) {
   const key = id === 'selected' ? 'krasnaya' : id
@@ -120,8 +125,8 @@ const initialBooking: BookingState = {
   date: 'Сегодня',
   time: '19:30',
   guests: 2,
-  name: 'Алексей',
-  phone: '+7 900 000-00-00',
+  name: '',
+  phone: '',
 }
 
 function Screen({ children, className = '' }: { children: ReactNode; className?: string }) {
@@ -237,9 +242,9 @@ function HomePage() {
           </div>
         </section>
 
-        <section className="loyalty-strip" onClick={() => go('loyalty')} role="button" tabIndex={0}>
-          <div className="mini-qr"><QrCode size={32} /></div>
-          <div><span>ЧОткая карта</span><strong>Карта всегда под рукой</strong><small>Общие правила четырёх ресторанов</small></div>
+        <section className="loyalty-strip" onClick={() => go('loyalty')} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') go('loyalty') }} role="button" tabIndex={0}>
+          <div className="mini-qr"><WalletCards size={30} /></div>
+          <div><span>ЧОткая карта</span><strong>Как работает программа</strong><small>Официальные условия и ссылка на карту</small></div>
           <ChevronRight size={20} />
         </section>
 
@@ -450,7 +455,7 @@ function BookingPage({ restaurant, booking, setBooking, source, eventId }: { res
 }
 
 function BookingDetailsPage({ restaurant, booking, setBooking, source, eventId }: { restaurant: Restaurant; booking: BookingState; setBooking: (next: BookingState) => void; source?: string | null; eventId?: string | null }) {
-  const valid = booking.name.trim().length >= 2 && booking.phone.replace(/\D/g, '').length >= 6
+  const valid = booking.name.trim().length >= 2 && booking.phone.replace(/\D/g, '').length >= 11
   return (
     <Screen className="form-screen">
       <BackHeader title="Детали брони" overline={restaurant.name} />
@@ -592,9 +597,9 @@ function CartPage({ restaurant, lines, setQuantity }: { restaurant: Restaurant; 
 }
 
 function CheckoutPage({ restaurant, lines, addressId, time, edit }: { restaurant: Restaurant; lines: Carts[RestaurantId]; addressId?: string | null; time?: string | null; edit?: string | null }) {
-  const [name, setName] = useState('Алексей')
-  const [phone, setPhone] = useState('+7 900 000-00-00')
-  const [payment, setPayment] = useState('Карта •• 2481')
+  const [name, setName] = useState(() => readProfile().name)
+  const [phone, setPhone] = useState(() => readProfile().phone)
+  const [payment, setPayment] = useState('Банковская карта')
   const [now, setNow] = useState(() => new Date())
   useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 60_000); return () => window.clearInterval(timer) }, [])
   const selectedAddressId = addressId === 'selected' ? 'krasnaya' : addressId
@@ -602,7 +607,7 @@ function CheckoutPage({ restaurant, lines, addressId, time, edit }: { restaurant
   const slots = upcomingOrderSlots(now)
   const selectedSlot = slots.find((slot) => slot.id === time)
   const total = cartTotal(lines)
-  const validContacts = name.trim().length >= 2 && phone.replace(/\D/g, '').length >= 6
+  const validContacts = name.trim().length >= 2 && phone.replace(/\D/g, '').length >= 11
   const route = `checkout?restaurant=${restaurant.id}${address ? `&address=${selectedAddressId}` : ''}${selectedSlot ? `&time=${selectedSlot.id}` : ''}`
   const ready = Boolean(address && selectedSlot && total > 0 && validContacts)
   return (
@@ -613,8 +618,8 @@ function CheckoutPage({ restaurant, lines, addressId, time, edit }: { restaurant
       {edit === 'address' && <div className="choice-sheet" role="dialog" aria-label="Выбор адреса"><b>Куда доставить</b>{Object.entries(deliveryAddresses).map(([id, value]) => <button key={id} onClick={() => go(`checkout?restaurant=${restaurant.id}&address=${id}${selectedSlot ? `&time=${selectedSlot.id}` : ''}`)}>{value}{selectedAddressId === id && <Check />}</button>)}</div>}
       <button className={`checkout-row ${selectedSlot ? 'chosen' : ''}`} onClick={() => go(`${route}&edit=time`)}><div><small>Интервал</small><strong>{selectedSlot?.label || 'Выбрать время'}</strong></div>{selectedSlot ? <Check /> : <ChevronRight />}</button>
       {edit === 'time' && <div className="choice-sheet" role="dialog" aria-label="Выбор времени"><b>Доступные интервалы</b>{slots.map((slot) => <button key={slot.id} onClick={() => go(`checkout?restaurant=${restaurant.id}${address ? `&address=${selectedAddressId}` : ''}&time=${slot.id}`)}>{slot.label}{selectedSlot?.id === slot.id && <Check />}</button>)}</div>}
-      <button className="checkout-row" onClick={() => go('loyalty')}><div><small>ЧОткая карта</small><strong>Начислить бонусы</strong></div><ChevronRight /></button>
-      <div className="payment-card"><CreditCard /><div><small>Способ оплаты</small><select value={payment} onChange={(event) => setPayment(event.target.value)}><option>Карта •• 2481</option><option>При получении</option></select></div><Check /></div>
+      <button className="checkout-row" onClick={() => go('loyalty')}><div><small>ЧОткая карта</small><strong>Посмотреть условия программы</strong></div><ChevronRight /></button>
+      <div className="payment-card"><CreditCard /><div><small>Способ оплаты</small><select value={payment} onChange={(event) => setPayment(event.target.value)}><option>Банковская карта</option><option>При получении</option></select></div><Check /></div>
       <section className="checkout-lines"><h2>Состав заказа</h2>{lines.map((line) => <div key={`${line.id}:${line.modifier}`}><DishArt dish={line} compact /><span><b>{line.name}</b><small>{line.modifier || 'Стандартная подача'} · {line.quantity} × {formatMoney(line.price)}</small></span><strong>{formatMoney(line.price * line.quantity)}</strong></div>)}</section>
       <section className="checkout-contacts"><h2>Контакты</h2><label className="field"><span>Имя</span><input value={name} onChange={(event) => setName(event.target.value)} /></label><label className="field"><span>Телефон</span><input inputMode="tel" value={phone} onChange={(event) => setPhone(event.target.value)} /></label></section>
       <div className="order-total"><span>К оплате</span><strong>{formatMoney(total)}</strong></div>
@@ -657,12 +662,12 @@ function LoyaltyPage() {
   return (
     <>
       <Screen className="loyalty-screen">
-        <header className="loyalty-header"><span className="kicker">ЧОткая карта</span><h1>Одна карта.<br />Четыре ресторана.</h1><p>Подтверждено публичными страницами программы лояльности.</p></header>
+        <header className="loyalty-header"><span className="kicker">ЧОткая карта</span><h1>Одна карта.<br />Четыре ресторана.</h1><p>Кешбэк и правила программы — на официальном сайте.</p></header>
         <div className="loyalty-card">
-          <div className="loyalty-top"><img src={asset('assets/app-icon.webp')} alt="Иконка приложения «ЧОткая карта»" /><span>Баланс карты</span></div>
-          <strong>860 <small>бонусов</small></strong>
-          <div className="qr-large"><QrCode size={86} /><span>Код карты</span></div>
-          <div className="card-bottom"><span>1 бонус = 1 рубль</span><span>Уровень · базовый</span></div>
+          <div className="loyalty-top"><img src={asset('assets/app-icon.webp')} alt="Иконка приложения «ЧОткая карта»" /><span>Программа лояльности</span></div>
+          <strong>ЧОткая<br />карта</strong>
+          <p className="loyalty-explain">Этот прототип не подключён к личному кабинету. Баланс и код карты можно посмотреть только в официальном сервисе.</p>
+          <a className="loyalty-official" href="https://restoran-cho.ru/card" target="_blank" rel="noreferrer">Открыть карту <ArrowRight size={17} /></a>
         </div>
         <section className="rules-card"><h2>Публичные условия</h2><ul><li>Кешбэк растёт от 3% до 10% в зависимости от визитов.</li><li>Бонусами можно оплатить до 20% покупки.</li><li>Накопленные бонусы активны 90 дней и начисляются через 12 часов.</li></ul><a href="https://restoran-cho.ru/card" target="_blank" rel="noreferrer">Официальные правила <ArrowRight size={16} /></a></section>
         <section className="brand-dots"><span>Чо-Чо</span><span>Птичка-Невеличка</span><span>Катенька-Катюша</span><span>Bésame mucho</span></section>
@@ -673,11 +678,11 @@ function LoyaltyPage() {
 }
 
 function ProfilePage() {
-  const [name, setName] = useState('Алексей')
-  const [phone, setPhone] = useState('+7 900 000-00-00')
+  const [name, setName] = useState(() => readProfile().name)
+  const [phone, setPhone] = useState(() => readProfile().phone)
   const [saved, setSaved] = useState(false)
-  const valid = name.trim().length >= 2 && phone.replace(/\D/g, '').length >= 6
-  return <><Screen className="profile-screen"><header className="history-header"><span className="kicker">Моё</span><h1>Профиль и сохранённые действия</h1></header><section className="profile-form"><label className="field"><span>Имя</span><input value={name} onChange={(event) => { setName(event.target.value); setSaved(false) }} /></label><label className="field"><span>Телефон</span><input inputMode="tel" value={phone} onChange={(event) => { setPhone(event.target.value); setSaved(false) }} /></label><button className="primary-button" disabled={!valid} onClick={() => setSaved(true)}>{saved ? 'Контакты сохранены' : 'Сохранить контакты'}</button></section><section className="profile-actions"><button onClick={() => go('history')}><ReceiptText /><span><b>История</b><small>Заказы и посещения</small></span><ChevronRight /></button><button onClick={() => go('favorites')}><Heart /><span><b>Избранное</b><small>Сохранённые рестораны</small></span><ChevronRight /></button><button onClick={() => go('loyalty')}><WalletCards /><span><b>ЧОткая карта</b><small>Баланс и правила</small></span><ChevronRight /></button></section></Screen><BottomNav active="profile" /></>
+  const valid = name.trim().length >= 2 && phone.replace(/\D/g, '').length >= 11
+  return <><Screen className="profile-screen"><header className="history-header"><span className="kicker">Моё</span><h1>Профиль и сохранённые действия</h1></header><section className="profile-form"><label className="field"><span>Имя</span><input value={name} onChange={(event) => { setName(event.target.value); setSaved(false) }} /></label><label className="field"><span>Телефон</span><input inputMode="tel" value={phone} onChange={(event) => { setPhone(event.target.value); setSaved(false) }} placeholder="+7 900 000-00-00" /></label><button className="primary-button" disabled={!valid} onClick={() => { localStorage.setItem('chotkie-profile', JSON.stringify({ name: name.trim(), phone: phone.trim() })); setSaved(true) }}>{saved ? 'Контакты сохранены' : 'Сохранить контакты'}</button></section><section className="profile-actions"><button onClick={() => go('history')}><ReceiptText /><span><b>История</b><small>Заказы и посещения</small></span><ChevronRight /></button><button onClick={() => go('favorites')}><Heart /><span><b>Избранное</b><small>Сохранённые рестораны</small></span><ChevronRight /></button><button onClick={() => go('loyalty')}><WalletCards /><span><b>ЧОткая карта</b><small>Правила и официальный сервис</small></span><ChevronRight /></button></section></Screen><BottomNav active="profile" /></>
 }
 
 function FavoritesPage({ favorites }: { favorites: RestaurantId[] }) {
@@ -715,7 +720,7 @@ function AppShell({ children }: { children: ReactNode }) {
 export function App() {
   const [location, setLocation] = useState(() => parseHash(window.location.hash))
   const [carts, setCarts] = useState<Carts>(readCarts)
-  const [booking, setBookingState] = useState<BookingState>(initialBooking)
+  const [booking, setBookingState] = useState<BookingState>(() => ({ ...initialBooking, ...readProfile() }))
   const [favorites, setFavorites] = useState<RestaurantId[]>(readFavorites)
   const [orders, setOrders] = useState<OrderRecord[]>(readOrders)
 
