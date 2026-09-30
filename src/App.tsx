@@ -203,13 +203,13 @@ function HomePage() {
             <h1>Куда пойдём?</h1>
           </div>
           <button className="avatar-button" onClick={() => go('profile')} aria-label="Открыть профиль">
-            А
+            <UserRound aria-hidden="true" size={21} />
           </button>
         </header>
 
         <button className="editorial-hero" onClick={() => go('event?id=live-night')}>
           <img src={asset('assets/cho-interior.webp')} alt="Интерьер ресторана «Чо-Чо»" />
-          <div className="hero-label">Сценарий события</div>
+          <div className="hero-label">В афише</div>
           <div className="hero-copy">
             <span>Вечер живой музыки</span>
             <h2>Сначала событие.<br />Потом — столик.</h2>
@@ -442,7 +442,7 @@ function BookingPage({ restaurant, booking, setBooking, source, eventId }: { res
         <div className="time-grid">
           {times.map((time) => <button key={time} className={booking.time === time ? 'selected' : ''} disabled={!isFutureBooking(booking.date, time, now, source === 'event' ? eventId : null)} onClick={() => setBooking({ ...booking, time })}>{time}</button>)}
         </div>
-        <small className="demo-caption">{source === 'event' ? 'Время закреплено за сценарием события.' : 'Финальную доступность подтвердит ресторан.'}</small>
+        <small className="demo-caption">{source === 'event' ? 'Для события доступно указанное время.' : 'Финальную доступность подтвердит ресторан.'}</small>
       </section>
       <section className="guest-row">
         <div><span className="kicker">03 · компания</span><h2>Количество гостей</h2></div>
