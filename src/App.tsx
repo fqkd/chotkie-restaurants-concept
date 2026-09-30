@@ -183,8 +183,7 @@ function RestaurantVisual({ restaurant, compact = false }: { restaurant: Restaur
 }
 
 function DishArt({ dish, compact = false }: { dish: Dish; compact?: boolean }) {
-  if (dish.id === 'sirena' || dish.id === 'seafood') return <img className={`dish-art photo ${compact ? 'compact' : ''}`} src={asset(dish.image)} alt="" loading="lazy" />
-  return <div className={`dish-art ${dish.restaurantId} ${compact ? 'compact' : ''}`} aria-label={`Иллюстрация блюда «${dish.name}»`}><span><Utensils /></span><i /><i /></div>
+  return <img className={`dish-art photo ${compact ? 'compact' : ''}`} src={asset(dish.image)} alt="" loading="lazy" />
 }
 
 function HomePage() {
@@ -539,14 +538,16 @@ function EventPage({ id }: { id?: string | null }) {
 
 function MenuPage({ restaurant, mode, category }: { restaurant: Restaurant; mode?: string | null; category?: string | null }) {
   const restaurantDishes = dishes.filter((dish) => dish.restaurantId === restaurant.id)
-  const activeCategory = category || 'popular'
-  const visibleDishes = activeCategory === 'drinks' ? [] : restaurantDishes
-  const menuRoute = (nextCategory: string) => `menu?restaurant=${restaurant.id}${mode ? `&mode=${mode}` : ''}${nextCategory === 'popular' ? '' : `&category=${nextCategory}`}`
+  const activeCategory = category || 'all'
+  const visibleDishes = activeCategory === 'all' ? restaurantDishes : restaurantDishes.filter((dish) => dish.category === activeCategory)
+  const categories = (['appetizer', 'hot', 'dessert'] as const).filter((id) => restaurantDishes.some((dish) => dish.category === id))
+  const categoryLabels = { appetizer: 'Закуски', hot: 'Горячее', dessert: 'Десерты' }
+  const menuRoute = (nextCategory: string) => `menu?restaurant=${restaurant.id}${mode ? `&mode=${mode}` : ''}${nextCategory === 'all' ? '' : `&category=${nextCategory}`}`
   return (
     <Screen className="menu-screen">
       <BackHeader title={mode === 'order' ? 'Заказ' : 'Меню'} overline={restaurant.name} action={<button className="icon-button" onClick={() => go(`cart?restaurant=${restaurant.id}`)} aria-label="Корзина"><ShoppingBag size={19} /></button>} />
       <div className="menu-intro"><span className="kicker">Меню ресторана</span><h1>{restaurant.name}</h1><p>Выберите категорию и откройте состав блюда.</p></div>
-      <div className="menu-tabs"><button className={activeCategory === 'popular' ? 'active' : ''} onClick={() => go(menuRoute('popular'))}>Популярное</button><button className={activeCategory === 'main' ? 'active' : ''} onClick={() => go(menuRoute('main'))}>Основное</button><button className={activeCategory === 'drinks' ? 'active' : ''} onClick={() => go(menuRoute('drinks'))}>Напитки</button></div>
+      {categories.length > 1 && <div className="menu-tabs"><button className={activeCategory === 'all' ? 'active' : ''} onClick={() => go(menuRoute('all'))}>Все блюда</button>{categories.map((id) => <button key={id} className={activeCategory === id ? 'active' : ''} onClick={() => go(menuRoute(id))}>{categoryLabels[id]}</button>)}</div>}
       {visibleDishes.length > 0 ? (
         <div className="dish-list">
           {visibleDishes.map((dish) => (
@@ -559,7 +560,7 @@ function MenuPage({ restaurant, mode, category }: { restaurant: Restaurant; mode
       ) : restaurantDishes.length === 0 ? (
         <div className="menu-readonly"><Utensils size={30} /><h2>Онлайн-заказ недоступен</h2><p>Можно посмотреть ресторан и выбрать столик.</p><button className="primary-button" onClick={() => go(`booking?restaurant=${restaurant.id}`)}>Забронировать столик</button></div>
       ) : (
-        <div className="menu-readonly"><Utensils size={30} /><h2>В этой категории пока пусто</h2><p>Выберите другой раздел меню ресторана.</p><button className="primary-button" onClick={() => go(menuRoute('popular'))}>Вернуться к популярному</button></div>
+        <div className="menu-readonly"><Utensils size={30} /><h2>Раздел не найден</h2><p>Откройте все блюда ресторана.</p><button className="primary-button" onClick={() => go(menuRoute('all'))}>Все блюда</button></div>
       )}
     </Screen>
   )
@@ -571,7 +572,7 @@ function DishPage({ dish, addToCart }: { dish: Dish; addToCart: (dish: Dish, mod
   return (
     <Screen className="dish-page">
       <div className="dish-hero"><DishArt dish={dish} /><button className="icon-button cover-back" onClick={() => window.history.back()} aria-label="Назад"><ArrowLeft /></button></div>
-      <div className="dish-copy"><span className="kicker">{restaurant.name} · блюдо</span><h1>{dish.name}</h1><p>{dish.description}</p><div className="dish-price"><strong>{formatMoney(dish.price)}</strong><span>Цена может измениться</span></div><h2>Подача</h2><div className="modifier-row">{['Стандартная подача', 'Без соуса'].map((value) => <button className={modifier === value ? 'active' : ''} key={value} onClick={() => setModifier(value)}>{value}<Check /></button>)}</div></div>
+      <div className={`dish-copy ${dish.presentationOption ? 'has-modifier' : ''}`}><span className="kicker">{restaurant.name} · блюдо</span><h1>{dish.name}</h1><p>{dish.description}</p><div className="dish-price"><strong>{formatMoney(dish.price)}</strong><span>Цена может измениться</span></div>{dish.presentationOption && <><h2>Подача</h2><div className="modifier-row">{['Стандартная подача', dish.presentationOption].map((value) => <button className={modifier === value ? 'active' : ''} key={value} onClick={() => setModifier(value)}>{value}<Check /></button>)}</div></>}</div>
       {dish.available ? <button className="sticky-primary" onClick={() => { addToCart(dish, modifier); go(`cart?restaurant=${dish.restaurantId}`) }}>Добавить в корзину <Plus size={19} /></button> : <button className="sticky-primary disabled" onClick={() => go(`menu?restaurant=${dish.restaurantId}`)}>Выбрать другую позицию</button>}
     </Screen>
   )

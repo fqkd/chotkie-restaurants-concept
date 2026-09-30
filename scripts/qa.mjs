@@ -49,13 +49,22 @@ async function inspect(path, width, height, name) {
   const response = await page.goto(`${base}${path}`, { waitUntil: 'networkidle' })
   if (!response?.ok()) throw new Error(`${path}: HTTP ${response?.status()}`)
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)
-  if (path.includes('/#dish?restaurant=cho')) {
+  if (path.includes('/#dish?')) {
     const photo = await page.locator('.dish-hero img').evaluate((image) => image.complete && image.naturalWidth > 0)
     if (!photo) throw new Error(`${path}: фотография блюда не загрузилась`)
   }
   if (overflow) report.overflows.push({ path, width })
   if (errors.length) report.consoleErrors.push({ path, width, errors })
   await page.screenshot({ path: `qa-output/${name}-${width}.png`, fullPage: true })
+  if (path.includes('/#dish?') && await page.locator('.modifier-row button').count()) {
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+    const gap = await page.evaluate(() => {
+      const option = document.querySelector('.modifier-row button:last-child')?.getBoundingClientRect()
+      const action = document.querySelector('.sticky-primary')?.getBoundingClientRect()
+      return option && action ? action.top - option.bottom : -1
+    })
+    if (gap < 8) throw new Error(`${path}: действие перекрывает последний вариант подачи (зазор ${gap}px)`)
+  }
   report.pages.push({ path, width, status: response.status(), overflow, errors: errors.length })
   await page.close()
 }
@@ -84,10 +93,13 @@ const regressionPaths = [
   '/#events',
   '/#event?id=live-night',
   '/#menu?restaurant=cho&mode=order',
-  '/#menu?restaurant=cho&mode=order&category=drinks',
+  '/#menu?restaurant=cho&mode=order&category=hot',
   '/#dish?restaurant=cho&id=sirena',
   '/#dish?restaurant=cho&id=seafood',
+  '/#dish?restaurant=ptichka&id=bird',
   '/#dish?restaurant=ptichka&id=seasonal',
+  '/#dish?restaurant=katenka&id=katenka-pie',
+  '/#dish?restaurant=katenka&id=katenka-dessert',
   '/#cart?restaurant=cho',
   '/#checkout?restaurant=cho&address=selected&time=1930',
   '/#payment-error?restaurant=cho&service=delivery&address=selected&time=1930',
@@ -202,9 +214,9 @@ await scenario('позиция → корзина → ошибка оплаты 
   await page.goto(`${base}/#dish?restaurant=cho&id=sirena`, { waitUntil: 'networkidle' })
   await page.evaluate(() => localStorage.removeItem('chotkie-demo-carts'))
   await page.reload({ waitUntil: 'networkidle' })
-  await page.getByRole('button', { name: 'Без соуса' }).click()
+  await page.getByRole('button', { name: 'Без фри из батата' }).click()
   await page.getByRole('button', { name: /Добавить в корзину/ }).click()
-  await page.locator('.cart-line').getByText('Без соуса').waitFor()
+  await page.locator('.cart-line').getByText('Без фри из батата').waitFor()
   await page.getByRole('button', { name: /К оформлению/ }).click()
   if (await page.getByRole('button', { name: /Заполните адрес/ }).isEnabled()) throw new Error('Оплата доступна без адреса и времени')
   await page.getByRole('button', { name: /Выбрать адрес/ }).click()
@@ -236,7 +248,7 @@ await scenario('позиция → корзина → ошибка оплаты 
   if (await page.locator('.past-order').count() !== 1) throw new Error('Оформленный заказ не записан в историю')
   await page.getByRole('button', { name: 'Повторить заказ' }).click()
   await page.getByText('Тартар из мраморной говядины с фри из батата').waitFor()
-  await page.locator('.cart-line').getByText('Без соуса').waitFor()
+  await page.locator('.cart-line').getByText('Без фри из батата').waitFor()
   if (!page.url().includes('restaurant=cho')) throw new Error('Повтор открыл корзину другого ресторана')
 })
 
@@ -249,16 +261,16 @@ await scenario('отдельные корзины ресторанов', async (
   await page.getByRole('button', { name: /Добавить в корзину/ }).click()
   await page.goto(`${base}/#restaurant?id=katenka`, { waitUntil: 'networkidle' })
   await page.getByRole('button', { name: /Заказать/ }).click()
-  await page.getByRole('button', { name: /Пирог ручной работы/ }).click()
+  await page.getByRole('button', { name: /Пирог с томатами и моцареллой/ }).click()
   await page.getByRole('button', { name: /Добавить в корзину/ }).click()
   await page.goto(`${base}/#cart?restaurant=cho`, { waitUntil: 'networkidle' })
   await page.getByText('Тартар из мраморной говядины с фри из батата').waitFor()
-  if (await page.getByText('Блюдо из птицы от шефа').count()) throw new Error('Корзина «Чо-Чо» содержит позицию другого ресторана')
+  if (await page.getByText('Паштет из куриной печени с брусничным соусом').count()) throw new Error('Корзина «Чо-Чо» содержит позицию другого ресторана')
   await page.goto(`${base}/#cart?restaurant=ptichka`, { waitUntil: 'networkidle' })
-  await page.getByText('Блюдо из птицы от шефа').waitFor()
+  await page.getByText('Паштет из куриной печени с брусничным соусом').waitFor()
   if (await page.getByText('Тартар из мраморной говядины с фри из батата').count()) throw new Error('Корзина «Птички-Невелички» содержит позицию другого ресторана')
   await page.goto(`${base}/#cart?restaurant=katenka`, { waitUntil: 'networkidle' })
-  await page.getByText('Пирог ручной работы').waitFor()
+  await page.getByText('Пирог с томатами и моцареллой').waitFor()
   if (await page.getByText('Тартар из мраморной говядины с фри из батата').count()) throw new Error('Корзина «Катеньки-Катюши» содержит позицию другого ресторана')
 })
 
@@ -271,9 +283,12 @@ await scenario('избранное и состояния меню дают об�
   await page.getByRole('button', { name: 'Убрать из избранного' }).click()
   await page.getByText('Ресторан добавлен в избранное').waitFor({ state: 'detached' })
   await page.goto(`${base}/#menu?restaurant=cho&mode=order`, { waitUntil: 'networkidle' })
-  await page.getByRole('button', { name: 'Напитки' }).click()
-  await page.getByRole('heading', { name: 'В этой категории пока пусто' }).waitFor()
-  await page.getByRole('button', { name: 'Вернуться к популярному' }).click()
+  await page.getByRole('button', { name: 'Горячее', exact: true }).click()
+  await page.locator('.menu-tabs button.active').getByText('Горячее', { exact: true }).waitFor()
+  await page.getByText('Сковородка морепродуктов').waitFor()
+  if (await page.getByText('Тартар из мраморной говядины с фри из батата').count()) throw new Error('Категория «Горячее» показывает закуску')
+  await page.getByRole('button', { name: 'Все блюда' }).click()
+  await page.locator('.menu-tabs button.active').getByText('Все блюда', { exact: true }).waitFor()
   await page.getByText('Тартар из мраморной говядины с фри из батата').waitFor()
 })
 
