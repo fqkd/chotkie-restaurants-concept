@@ -392,7 +392,7 @@ function RestaurantPage({ restaurant, saved, onToggleSaved }: { restaurant: Rest
           )}
           <button onClick={() => go(`discover?mood=${encodeURIComponent(restaurant.moods[0])}`)}><Sparkles /><strong>Похожее</strong><span>Другой ресторан</span></button>
         </div>
-        {!restaurant.ordering && <p className="availability-note"><CircleAlert size={16} /> Доставка в концепции показывается только там, где она подтверждена публичным сайтом.</p>}
+        {!restaurant.ordering && <p className="availability-note"><CircleAlert size={16} /> Для этого ресторана онлайн-заказ сейчас недоступен.</p>}
       </div>
     </Screen>
   )
@@ -492,15 +492,15 @@ function EventsPage() {
   return (
     <>
       <Screen className="events-screen">
-        <header className="events-header"><span className="kicker">Афиша</span><h1>Событие — это повод выбрать ресторан</h1></header>
+        <header className="events-header"><span className="kicker">Афиша</span><h1>Встречи и события</h1></header>
         <button className="event-feature" onClick={() => go('event?id=live-night')}>
           <img src={asset('assets/cho-interior.webp')} alt="Интерьер «Чо-Чо»" />
-          <span className="demo-badge">Сценарное событие</span>
+          <span className="demo-badge">Идея для афиши</span>
           <div><small>Чо-Чо · {formatKrasnodarDate(3)}, 19:30</small><strong>Живая музыка и ужин</strong><span>Открыть и выбрать столик <ArrowRight size={16} /></span></div>
         </button>
         <div className="event-list">
           <button onClick={() => go('event?id=brunch')}><span className="event-date">+{brunchOffset()}<br /><b>11:00</b></span><div><small>Bésame mucho · {eventDate('brunch')}</small><strong>Долгий воскресный завтрак</strong></div><ChevronRight /></button>
-          <div className="empty-event"><Sparkles /><div><strong>Новых анонсов пока нет</strong><span>Пустое состояние сохраняет доступ к ресторанам и бронированию.</span></div></div>
+          <div className="empty-event"><Sparkles /><div><strong>Других событий пока нет</strong><span>Вы можете выбрать ресторан и забронировать столик без события.</span></div></div>
         </div>
       </Screen>
       <BottomNav active="events" />
@@ -518,12 +518,12 @@ function EventPage({ id }: { id?: string | null }) {
       <div className="event-image">
         <img src={asset(isBrunch ? 'assets/besame.webp' : 'assets/cho-interior.webp')} alt="Атмосфера события" />
         <button className="icon-button cover-back" onClick={() => window.history.back()} aria-label="Назад"><ArrowLeft /></button>
-        <span className="demo-badge">Сценарное событие</span>
+        <span className="demo-badge">Идея для афиши</span>
       </div>
       <div className="event-copy">
         <span className="kicker">{restaurant.name} · повод встретиться</span>
         <h1>{isBrunch ? 'Долгий воскресный завтрак' : 'Живая музыка и ужин'}</h1>
-        <p>{isBrunch ? 'Неспешный завтрак с отдельным столиком и фиксированным временем начала.' : 'Вечерний ужин с живой музыкой и фиксированным временем начала.'}</p>
+        <p>{isBrunch ? 'Неспешный воскресный завтрак. Выберите столик на 11:00.' : 'Ужин под живую музыку. Выберите столик на 19:30.'}</p>
         <div className="event-facts"><span><CalendarDays /> {displayDate}</span><span><Clock3 /> Начало в {eventTime}</span><span><MapPin /> {restaurant.address}</span></div>
         <button className="primary-button" onClick={() => go(`booking?restaurant=${restaurant.id}&source=event&event=${id || 'live-night'}`)}><CalendarDays /> Выбрать столик</button>
         <button className="secondary-button" onClick={() => go(`restaurant?id=${restaurant.id}`)}>О ресторане</button>
@@ -552,7 +552,7 @@ function MenuPage({ restaurant, mode, category }: { restaurant: Restaurant; mode
           ))}
         </div>
       ) : restaurantDishes.length === 0 ? (
-        <div className="menu-readonly"><Utensils size={30} /><h2>Меню для просмотра</h2><p>Заказ для этого ресторана не заявлен в концепции без публичного подтверждения сценария.</p><button className="primary-button" onClick={() => go(`booking?restaurant=${restaurant.id}`)}>Забронировать столик</button></div>
+        <div className="menu-readonly"><Utensils size={30} /><h2>Онлайн-заказ недоступен</h2><p>Можно посмотреть ресторан и выбрать столик.</p><button className="primary-button" onClick={() => go(`booking?restaurant=${restaurant.id}`)}>Забронировать столик</button></div>
       ) : (
         <div className="menu-readonly"><Utensils size={30} /><h2>В этой категории пока пусто</h2><p>Выберите другой раздел меню ресторана.</p><button className="primary-button" onClick={() => go(menuRoute('popular'))}>Вернуться к популярному</button></div>
       )}
