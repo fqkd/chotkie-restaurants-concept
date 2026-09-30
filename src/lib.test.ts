@@ -27,3 +27,13 @@ test('cart total and quantity recovery preserve the order', () => {
   assert.equal(cartTotal(carts.cho), first.price * 2)
   assert.equal(updateLine(carts, 'cho', first.id, -1).cho[0].quantity, 1)
 })
+
+test('different presentation choices remain separate cart lines', () => {
+  const dish = dishes[0]
+  const carts = addLine(addLine(emptyCarts(), dish), dish, 'Без соуса')
+  assert.equal(carts.cho.length, 2)
+  assert.equal(cartTotal(carts.cho), dish.price * 2)
+  const updated = updateLine(carts, 'cho', dish.id, -1, 'Без соуса')
+  assert.equal(updated.cho.length, 1)
+  assert.equal(updated.cho[0].modifier, 'Стандартная подача')
+})

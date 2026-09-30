@@ -13,7 +13,6 @@ import {
   MapPin,
   Minus,
   Plus,
-  QrCode,
   ReceiptText,
   RotateCcw,
   Search,
@@ -37,13 +36,29 @@ import {
   restaurants,
   updateLine,
   type Carts,
+  type CartLine,
   type Dish,
   type Restaurant,
   type RestaurantId,
 } from './lib'
 import { LocationMap } from './LocationMap'
+import { bookingDates, brunchOffset, eventDate, formatKrasnodarDate, isFutureBooking, orderSlotLabel, upcomingOrderSlots } from './schedule'
 
 const asset = (path: string) => `${import.meta.env.BASE_URL}${path}`
+const deliveryAddresses = {
+  krasnaya: 'ул. Красная, 120, Краснодар',
+  severnaya: 'ул. Северная, 305, Краснодар',
+}
+function readProfile(): { name: string; phone: string } {
+  try {
+    const stored = JSON.parse(localStorage.getItem('chotkie-profile') || '{}')
+    return { name: typeof stored.name === 'string' ? stored.name : '', phone: typeof stored.phone === 'string' ? stored.phone : '' }
+  } catch { return { name: '', phone: '' } }
+}
+function deliveryAddress(id?: string | null) {
+  const key = id === 'selected' ? 'krasnaya' : id
+  return key && key in deliveryAddresses ? deliveryAddresses[key as keyof typeof deliveryAddresses] : null
+}
 
 function go(path: string) {
   window.location.hash = path
@@ -60,14 +75,6 @@ function formatGuests(value: number) {
   return `${value} ${word}`
 }
 
-function formatKrasnodarDate(offsetDays: number) {
-  const date = new Date()
-  date.setUTCDate(date.getUTCDate() + offsetDays)
-  return new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', timeZone: 'Europe/Moscow' }).format(date)
-}
-
-const bookingDates = ['Сегодня', 'Завтра', formatKrasnodarDate(2)]
-
 function readCarts(): Carts {
   try {
     const stored = localStorage.getItem('chotkie-demo-carts')
@@ -80,6 +87,25 @@ function readCarts(): Carts {
 function readFavorites(): RestaurantId[] {
   try {
     return JSON.parse(localStorage.getItem('chotkie-favorites') || '[]')
+  } catch {
+    return []
+  }
+}
+
+type OrderRecord = {
+  id: string
+  restaurantId: RestaurantId
+  createdAt: string
+  addressId: string
+  time: string
+  lines: CartLine[]
+  total: number
+}
+
+function readOrders(): OrderRecord[] {
+  try {
+    const value = JSON.parse(localStorage.getItem('chotkie-demo-orders') || '[]')
+    return Array.isArray(value) ? value : []
   } catch {
     return []
   }
@@ -99,8 +125,8 @@ const initialBooking: BookingState = {
   date: 'Сегодня',
   time: '19:30',
   guests: 2,
-  name: 'Алексей',
-  phone: '+7 900 000-00-00',
+  name: '',
+  phone: '',
 }
 
 function Screen({ children, className = '' }: { children: ReactNode; className?: string }) {
@@ -157,7 +183,7 @@ function RestaurantVisual({ restaurant, compact = false }: { restaurant: Restaur
 }
 
 function DishArt({ dish, compact = false }: { dish: Dish; compact?: boolean }) {
-  return <div className={`dish-art ${dish.restaurantId} ${compact ? 'compact' : ''}`} aria-label={`Иллюстрация блюда «${dish.name}»`}><span><Utensils /></span><i /><i /></div>
+  return <img className={`dish-art photo ${compact ? 'compact' : ''}`} src={asset(dish.image)} alt="" loading="lazy" />
 }
 
 function HomePage() {
@@ -177,13 +203,13 @@ function HomePage() {
             <h1>Куда пойдём?</h1>
           </div>
           <button className="avatar-button" onClick={() => go('profile')} aria-label="Открыть профиль">
-            А
+            <UserRound aria-hidden="true" size={21} />
           </button>
         </header>
 
         <button className="editorial-hero" onClick={() => go('event?id=live-night')}>
           <img src={asset('assets/cho-interior.webp')} alt="Интерьер ресторана «Чо-Чо»" />
-          <div className="hero-label">Сценарий события</div>
+          <div className="hero-label">В афише</div>
           <div className="hero-copy">
             <span>Вечер живой музыки</span>
             <h2>Сначала событие.<br />Потом — столик.</h2>
@@ -215,9 +241,9 @@ function HomePage() {
           </div>
         </section>
 
-        <section className="loyalty-strip" onClick={() => go('loyalty')} role="button" tabIndex={0}>
-          <div className="mini-qr"><QrCode size={32} /></div>
-          <div><span>ЧОткая карта</span><strong>Карта всегда под рукой</strong><small>Общие правила четырёх ресторанов</small></div>
+        <section className="loyalty-strip" onClick={() => go('loyalty')} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') go('loyalty') }} role="button" tabIndex={0}>
+          <div className="mini-qr"><WalletCards size={30} /></div>
+          <div><span>ЧОткая карта</span><strong>Как работает программа</strong><small>Официальные условия и ссылка на карту</small></div>
           <ChevronRight size={20} />
         </section>
 
@@ -227,7 +253,7 @@ function HomePage() {
           </div>
           <button className="history-teaser" onClick={() => go('history')}>
             <div className="history-icon"><RotateCcw size={22} /></div>
-            <div><strong>Повторить заказ из «Чо-Чо»</strong><span>Сначала проверим цену и доступность</span></div>
+            <div><strong>История заказов</strong><span>Ваши оформленные заказы и повтор</span></div>
             <ChevronRight size={20} />
           </button>
         </section>
@@ -370,7 +396,7 @@ function RestaurantPage({ restaurant, saved, onToggleSaved }: { restaurant: Rest
           )}
           <button onClick={() => go(`discover?mood=${encodeURIComponent(restaurant.moods[0])}`)}><Sparkles /><strong>Похожее</strong><span>Другой ресторан</span></button>
         </div>
-        {!restaurant.ordering && <p className="availability-note"><CircleAlert size={16} /> Доставка в концепции показывается только там, где она подтверждена публичным сайтом.</p>}
+        {!restaurant.ordering && <p className="availability-note"><CircleAlert size={16} /> Для этого ресторана онлайн-заказ сейчас недоступен.</p>}
       </div>
     </Screen>
   )
@@ -387,13 +413,17 @@ function Stepper({ value, setValue, min = 1, max = 12 }: { value: number; setVal
 }
 
 function BookingPage({ restaurant, booking, setBooking, source, eventId }: { restaurant: Restaurant; booking: BookingState; setBooking: (next: BookingState) => void; source?: string | null; eventId?: string | null }) {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 60_000); return () => window.clearInterval(timer) }, [])
   const eventTime = eventId === 'brunch' ? '11:00' : '19:30'
   const times = source === 'event' ? [eventTime] : ['18:30', '19:00', '19:30', '20:00', '20:30', '21:00']
+  const dateOptions = source === 'event' ? [eventDate(eventId, now)] : bookingDates(now)
+  const validBooking = isFutureBooking(booking.date, booking.time, now, source === 'event' ? eventId : null)
   useEffect(() => {
     const nextTime = times.includes(booking.time) ? booking.time : times[0]
-    const nextDate = bookingDates.includes(booking.date) ? booking.date : bookingDates[0]
+    const nextDate = dateOptions.includes(booking.date) ? booking.date : dateOptions[0]
     if (nextTime !== booking.time || nextDate !== booking.date || booking.restaurantId !== restaurant.id) setBooking({ ...booking, restaurantId: restaurant.id, time: nextTime, date: nextDate })
-  }, [eventId, restaurant.id, source])
+  }, [eventId, restaurant.id, source, dateOptions.join("|")])
   return (
     <Screen className="booking-screen">
       <BackHeader title="Столик" overline={restaurant.name} />
@@ -403,28 +433,28 @@ function BookingPage({ restaurant, booking, setBooking, source, eventId }: { res
         <span className="kicker">01 · день</span>
         <h2>Когда вас ждать?</h2>
         <div className="option-row dates">
-          {bookingDates.map((date) => <button key={date} className={booking.date === date ? 'selected' : ''} onClick={() => setBooking({ ...booking, date })}>{date.replace(' ', '\n')}</button>)}
+          {dateOptions.map((date) => <button key={date} className={booking.date === date ? 'selected' : ''} onClick={() => setBooking({ ...booking, date })}>{date.replace(' ', '\n')}</button>)}
         </div>
       </section>
       <section className="booking-block">
         <span className="kicker">02 · время</span>
         <h2>Свободные интервалы</h2>
         <div className="time-grid">
-          {times.map((time) => <button key={time} className={booking.time === time ? 'selected' : ''} onClick={() => setBooking({ ...booking, time })}>{time}</button>)}
+          {times.map((time) => <button key={time} className={booking.time === time ? 'selected' : ''} disabled={!isFutureBooking(booking.date, time, now, source === 'event' ? eventId : null)} onClick={() => setBooking({ ...booking, time })}>{time}</button>)}
         </div>
-        <small className="demo-caption">{source === 'event' ? 'Время закреплено за сценарием события.' : 'Финальную доступность подтвердит ресторан.'}</small>
+        <small className="demo-caption">{source === 'event' ? 'Для события доступно указанное время.' : 'Финальную доступность подтвердит ресторан.'}</small>
       </section>
       <section className="guest-row">
         <div><span className="kicker">03 · компания</span><h2>Количество гостей</h2></div>
         <Stepper value={booking.guests} setValue={(guests) => setBooking({ ...booking, guests })} />
       </section>
-      <button className="sticky-primary" onClick={() => go(`booking-details?restaurant=${restaurant.id}${source === 'event' ? `&source=event&event=${eventId || 'live-night'}` : ''}`)}>Продолжить <ArrowRight size={19} /></button>
+      <button className="sticky-primary" disabled={!validBooking} onClick={() => go(`booking-details?restaurant=${restaurant.id}${source === 'event' ? `&source=event&event=${eventId || 'live-night'}` : ''}`)}>Продолжить <ArrowRight size={19} /></button>
     </Screen>
   )
 }
 
 function BookingDetailsPage({ restaurant, booking, setBooking, source, eventId }: { restaurant: Restaurant; booking: BookingState; setBooking: (next: BookingState) => void; source?: string | null; eventId?: string | null }) {
-  const valid = booking.name.trim().length >= 2 && booking.phone.replace(/\D/g, '').length >= 6
+  const valid = booking.name.trim().length >= 2 && booking.phone.replace(/\D/g, '').length >= 11
   return (
     <Screen className="form-screen">
       <BackHeader title="Детали брони" overline={restaurant.name} />
@@ -466,15 +496,15 @@ function EventsPage() {
   return (
     <>
       <Screen className="events-screen">
-        <header className="events-header"><span className="kicker">Афиша</span><h1>Событие — это повод выбрать ресторан</h1></header>
+        <header className="events-header"><span className="kicker">Афиша</span><h1>Встречи и события</h1></header>
         <button className="event-feature" onClick={() => go('event?id=live-night')}>
           <img src={asset('assets/cho-interior.webp')} alt="Интерьер «Чо-Чо»" />
-          <span className="demo-badge">Сценарное событие</span>
+          <span className="demo-badge">Идея для афиши</span>
           <div><small>Чо-Чо · {formatKrasnodarDate(3)}, 19:30</small><strong>Живая музыка и ужин</strong><span>Открыть и выбрать столик <ArrowRight size={16} /></span></div>
         </button>
         <div className="event-list">
-          <button onClick={() => go('event?id=brunch')}><span className="event-date">+4<br /><b>11:00</b></span><div><small>Bésame mucho · {formatKrasnodarDate(4)}</small><strong>Долгий воскресный завтрак</strong></div><ChevronRight /></button>
-          <div className="empty-event"><Sparkles /><div><strong>Новых анонсов пока нет</strong><span>Пустое состояние сохраняет доступ к ресторанам и бронированию.</span></div></div>
+          <button onClick={() => go('event?id=brunch')}><span className="event-date">+{brunchOffset()}<br /><b>11:00</b></span><div><small>Bésame mucho · {eventDate('brunch')}</small><strong>Долгий воскресный завтрак</strong></div><ChevronRight /></button>
+          <div className="empty-event"><Sparkles /><div><strong>Других событий пока нет</strong><span>Вы можете выбрать ресторан и забронировать столик без события.</span></div></div>
         </div>
       </Screen>
       <BottomNav active="events" />
@@ -486,19 +516,19 @@ function EventPage({ id }: { id?: string | null }) {
   const isBrunch = id === 'brunch'
   const restaurant = findRestaurant(isBrunch ? 'besame' : 'cho')
   const eventTime = isBrunch ? '11:00' : '19:30'
-  const eventDate = formatKrasnodarDate(isBrunch ? 4 : 3)
+  const displayDate = eventDate(id)
   return (
     <Screen className="event-page">
       <div className="event-image">
         <img src={asset(isBrunch ? 'assets/besame.webp' : 'assets/cho-interior.webp')} alt="Атмосфера события" />
         <button className="icon-button cover-back" onClick={() => window.history.back()} aria-label="Назад"><ArrowLeft /></button>
-        <span className="demo-badge">Сценарное событие</span>
+        <span className="demo-badge">Идея для афиши</span>
       </div>
       <div className="event-copy">
         <span className="kicker">{restaurant.name} · повод встретиться</span>
         <h1>{isBrunch ? 'Долгий воскресный завтрак' : 'Живая музыка и ужин'}</h1>
-        <p>{isBrunch ? 'Неспешный завтрак с отдельным столиком и фиксированным временем начала.' : 'Вечерний ужин с живой музыкой и фиксированным временем начала.'}</p>
-        <div className="event-facts"><span><CalendarDays /> {eventDate}</span><span><Clock3 /> Начало в {eventTime}</span><span><MapPin /> {restaurant.address}</span></div>
+        <p>{isBrunch ? 'Неспешный воскресный завтрак. Выберите столик на 11:00.' : 'Ужин под живую музыку. Выберите столик на 19:30.'}</p>
+        <div className="event-facts"><span><CalendarDays /> {displayDate}</span><span><Clock3 /> Начало в {eventTime}</span><span><MapPin /> {restaurant.address}</span></div>
         <button className="primary-button" onClick={() => go(`booking?restaurant=${restaurant.id}&source=event&event=${id || 'live-night'}`)}><CalendarDays /> Выбрать столик</button>
         <button className="secondary-button" onClick={() => go(`restaurant?id=${restaurant.id}`)}>О ресторане</button>
       </div>
@@ -508,14 +538,16 @@ function EventPage({ id }: { id?: string | null }) {
 
 function MenuPage({ restaurant, mode, category }: { restaurant: Restaurant; mode?: string | null; category?: string | null }) {
   const restaurantDishes = dishes.filter((dish) => dish.restaurantId === restaurant.id)
-  const activeCategory = category || 'popular'
-  const visibleDishes = activeCategory === 'drinks' ? [] : restaurantDishes
-  const menuRoute = (nextCategory: string) => `menu?restaurant=${restaurant.id}${mode ? `&mode=${mode}` : ''}${nextCategory === 'popular' ? '' : `&category=${nextCategory}`}`
+  const activeCategory = category || 'all'
+  const visibleDishes = activeCategory === 'all' ? restaurantDishes : restaurantDishes.filter((dish) => dish.category === activeCategory)
+  const categories = (['appetizer', 'hot', 'dessert'] as const).filter((id) => restaurantDishes.some((dish) => dish.category === id))
+  const categoryLabels = { appetizer: 'Закуски', hot: 'Горячее', dessert: 'Десерты' }
+  const menuRoute = (nextCategory: string) => `menu?restaurant=${restaurant.id}${mode ? `&mode=${mode}` : ''}${nextCategory === 'all' ? '' : `&category=${nextCategory}`}`
   return (
     <Screen className="menu-screen">
       <BackHeader title={mode === 'order' ? 'Заказ' : 'Меню'} overline={restaurant.name} action={<button className="icon-button" onClick={() => go(`cart?restaurant=${restaurant.id}`)} aria-label="Корзина"><ShoppingBag size={19} /></button>} />
       <div className="menu-intro"><span className="kicker">Меню ресторана</span><h1>{restaurant.name}</h1><p>Выберите категорию и откройте состав блюда.</p></div>
-      <div className="menu-tabs"><button className={activeCategory === 'popular' ? 'active' : ''} onClick={() => go(menuRoute('popular'))}>Популярное</button><button className={activeCategory === 'main' ? 'active' : ''} onClick={() => go(menuRoute('main'))}>Основное</button><button className={activeCategory === 'drinks' ? 'active' : ''} onClick={() => go(menuRoute('drinks'))}>Напитки</button></div>
+      {categories.length > 1 && <div className="menu-tabs"><button className={activeCategory === 'all' ? 'active' : ''} onClick={() => go(menuRoute('all'))}>Все блюда</button>{categories.map((id) => <button key={id} className={activeCategory === id ? 'active' : ''} onClick={() => go(menuRoute(id))}>{categoryLabels[id]}</button>)}</div>}
       {visibleDishes.length > 0 ? (
         <div className="dish-list">
           {visibleDishes.map((dish) => (
@@ -526,27 +558,27 @@ function MenuPage({ restaurant, mode, category }: { restaurant: Restaurant; mode
           ))}
         </div>
       ) : restaurantDishes.length === 0 ? (
-        <div className="menu-readonly"><Utensils size={30} /><h2>Меню для просмотра</h2><p>Заказ для этого ресторана не заявлен в концепции без публичного подтверждения сценария.</p><button className="primary-button" onClick={() => go(`booking?restaurant=${restaurant.id}`)}>Забронировать столик</button></div>
+        <div className="menu-readonly"><Utensils size={30} /><h2>Онлайн-заказ недоступен</h2><p>Можно посмотреть ресторан и выбрать столик.</p><button className="primary-button" onClick={() => go(`booking?restaurant=${restaurant.id}`)}>Забронировать столик</button></div>
       ) : (
-        <div className="menu-readonly"><Utensils size={30} /><h2>В этой категории пока пусто</h2><p>Выберите другой раздел меню ресторана.</p><button className="primary-button" onClick={() => go(menuRoute('popular'))}>Вернуться к популярному</button></div>
+        <div className="menu-readonly"><Utensils size={30} /><h2>Раздел не найден</h2><p>Откройте все блюда ресторана.</p><button className="primary-button" onClick={() => go(menuRoute('all'))}>Все блюда</button></div>
       )}
     </Screen>
   )
 }
 
-function DishPage({ dish, addToCart }: { dish: Dish; addToCart: (dish: Dish) => void }) {
+function DishPage({ dish, addToCart }: { dish: Dish; addToCart: (dish: Dish, modifier: string) => void }) {
   const restaurant = findRestaurant(dish.restaurantId)
   const [modifier, setModifier] = useState('Стандартная подача')
   return (
     <Screen className="dish-page">
       <div className="dish-hero"><DishArt dish={dish} /><button className="icon-button cover-back" onClick={() => window.history.back()} aria-label="Назад"><ArrowLeft /></button></div>
-      <div className="dish-copy"><span className="kicker">{restaurant.name} · блюдо</span><h1>{dish.name}</h1><p>{dish.description}</p><div className="dish-price"><strong>{formatMoney(dish.price)}</strong><span>Цена может измениться</span></div><h2>Подача</h2><div className="modifier-row">{['Стандартная подача', 'Без соуса'].map((value) => <button className={modifier === value ? 'active' : ''} key={value} onClick={() => setModifier(value)}>{value}<Check /></button>)}</div></div>
-      {dish.available ? <button className="sticky-primary" onClick={() => { addToCart(dish); go(`cart?restaurant=${dish.restaurantId}`) }}>Добавить в корзину <Plus size={19} /></button> : <button className="sticky-primary disabled" onClick={() => go(`menu?restaurant=${dish.restaurantId}`)}>Выбрать другую позицию</button>}
+      <div className={`dish-copy ${dish.presentationOption ? 'has-modifier' : ''}`}><span className="kicker">{restaurant.name} · блюдо</span><h1>{dish.name}</h1><p>{dish.description}</p><div className="dish-price"><strong>{formatMoney(dish.price)}</strong><span>Цена может измениться</span></div>{dish.presentationOption && <><h2>Подача</h2><div className="modifier-row">{['Стандартная подача', dish.presentationOption].map((value) => <button className={modifier === value ? 'active' : ''} key={value} onClick={() => setModifier(value)}>{value}<Check /></button>)}</div></>}</div>
+      {dish.available ? <button className="sticky-primary" onClick={() => { addToCart(dish, modifier); go(`cart?restaurant=${dish.restaurantId}`) }}>Добавить в корзину <Plus size={19} /></button> : <button className="sticky-primary disabled" onClick={() => go(`menu?restaurant=${dish.restaurantId}`)}>Выбрать другую позицию</button>}
     </Screen>
   )
 }
 
-function CartPage({ restaurant, lines, setQuantity }: { restaurant: Restaurant; lines: Carts[RestaurantId]; setQuantity: (id: string, delta: number) => void }) {
+function CartPage({ restaurant, lines, setQuantity }: { restaurant: Restaurant; lines: Carts[RestaurantId]; setQuantity: (id: string, delta: number, modifier: string) => void }) {
   return (
     <Screen className="cart-screen">
       <BackHeader title="Корзина" overline={restaurant.name} />
@@ -555,7 +587,7 @@ function CartPage({ restaurant, lines, setQuantity }: { restaurant: Restaurant; 
         <div className="empty-state"><ShoppingBag /><h1>Корзина пока пуста</h1><p>Добавьте позицию из меню. Выбор ресторана сохранится.</p><button className="primary-button" onClick={() => go(`menu?restaurant=${restaurant.id}&mode=order`)}>Открыть меню</button></div>
       ) : (
         <>
-          <div className="cart-lines">{lines.map((line) => <div className="cart-line" key={line.id}><DishArt dish={line} compact /><div><strong>{line.name}</strong><span>{formatMoney(line.price)}</span></div><Stepper value={line.quantity} setValue={(next) => setQuantity(line.id, next - line.quantity)} min={0} /></div>)}</div>
+          <div className="cart-lines">{lines.map((line) => <div className="cart-line" key={`${line.id}:${line.modifier}`}><DishArt dish={line} compact /><div><strong>{line.name}</strong><span>{line.modifier || 'Стандартная подача'} · {formatMoney(line.price)}</span></div><Stepper value={line.quantity} setValue={(next) => setQuantity(line.id, next - line.quantity, line.modifier || 'Стандартная подача')} min={0} /></div>)}</div>
           <button className="add-more" onClick={() => go(`menu?restaurant=${restaurant.id}&mode=order`)}><Plus /> Добавить ещё</button>
           <div className="order-total"><span>Итого</span><strong>{formatMoney(cartTotal(lines))}</strong></div>
           <button className="sticky-primary" onClick={() => go(`checkout?restaurant=${restaurant.id}`)}>К оформлению <ArrowRight /></button>
@@ -565,34 +597,39 @@ function CartPage({ restaurant, lines, setQuantity }: { restaurant: Restaurant; 
   )
 }
 
-function CheckoutPage({ restaurant, lines, addressSelected, time, edit }: { restaurant: Restaurant; lines: Carts[RestaurantId]; addressSelected: boolean; time?: string | null; edit?: string | null }) {
-  const [name, setName] = useState('Алексей')
-  const [phone, setPhone] = useState('+7 900 000-00-00')
-  const [payment, setPayment] = useState('Карта •• 2481')
-  const selectedTime = time === '1930'
+function CheckoutPage({ restaurant, lines, addressId, time, edit }: { restaurant: Restaurant; lines: Carts[RestaurantId]; addressId?: string | null; time?: string | null; edit?: string | null }) {
+  const [name, setName] = useState(() => readProfile().name)
+  const [phone, setPhone] = useState(() => readProfile().phone)
+  const [payment, setPayment] = useState('Банковская карта')
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 60_000); return () => window.clearInterval(timer) }, [])
+  const selectedAddressId = addressId === 'selected' ? 'krasnaya' : addressId
+  const address = deliveryAddress(addressId)
+  const slots = upcomingOrderSlots(now)
+  const selectedSlot = slots.find((slot) => slot.id === time)
   const total = cartTotal(lines)
-  const validContacts = name.trim().length >= 2 && phone.replace(/\D/g, '').length >= 6
-  const route = `checkout?restaurant=${restaurant.id}${addressSelected ? '&address=selected' : ''}${selectedTime ? '&time=1930' : ''}`
-  const ready = addressSelected && selectedTime && total > 0 && validContacts
+  const validContacts = name.trim().length >= 2 && phone.replace(/\D/g, '').length >= 11
+  const route = `checkout?restaurant=${restaurant.id}${address ? `&address=${selectedAddressId}` : ''}${selectedSlot ? `&time=${selectedSlot.id}` : ''}`
+  const ready = Boolean(address && selectedSlot && total > 0 && validContacts)
   return (
     <Screen className="checkout-screen">
       <BackHeader title="Оформление" overline={restaurant.name} />
       <section className="checkout-choice"><span className="kicker">Как получить</span><div className="service-option"><MapPin /> Доставка <small>Подтверждена официальным сайтом</small></div></section>
-      <button className={`checkout-row ${addressSelected ? 'chosen' : ''}`} onClick={() => go(`${route}&edit=address`)}><div><small>Адрес доставки</small><strong>{addressSelected ? 'ул. Красная, 120, Краснодар' : 'Выбрать адрес'}</strong></div>{addressSelected ? <Check /> : <ChevronRight />}</button>
-      {edit === 'address' && <div className="choice-sheet" role="dialog" aria-label="Выбор адреса"><b>Куда доставить</b>{['ул. Красная, 120, Краснодар', 'ул. Северная, 305, Краснодар'].map((value) => <button key={value} onClick={() => go(`checkout?restaurant=${restaurant.id}&address=selected${selectedTime ? '&time=1930' : ''}`)}>{value}<Check /></button>)}</div>}
-      <button className={`checkout-row ${selectedTime ? 'chosen' : ''}`} onClick={() => go(`${route}&edit=time`)}><div><small>Интервал</small><strong>{selectedTime ? 'Сегодня, 19:30–20:00' : 'Выбрать время'}</strong></div>{selectedTime ? <Check /> : <ChevronRight />}</button>
-      {edit === 'time' && <div className="choice-sheet" role="dialog" aria-label="Выбор времени"><b>Доступные интервалы</b>{['Сегодня, 19:30–20:00', 'Сегодня, 20:00–20:30'].map((value) => <button key={value} onClick={() => go(`checkout?restaurant=${restaurant.id}${addressSelected ? '&address=selected' : ''}&time=1930`)}>{value}<Check /></button>)}</div>}
-      <button className="checkout-row" onClick={() => go('loyalty')}><div><small>ЧОткая карта</small><strong>Начислить бонусы</strong></div><ChevronRight /></button>
-      <div className="payment-card"><CreditCard /><div><small>Способ оплаты</small><select value={payment} onChange={(event) => setPayment(event.target.value)}><option>Карта •• 2481</option><option>При получении</option></select></div><Check /></div>
-      <section className="checkout-lines"><h2>Состав заказа</h2>{lines.map((line) => <div key={line.id}><DishArt dish={line} compact /><span><b>{line.name}</b><small>{line.quantity} × {formatMoney(line.price)}</small></span><strong>{formatMoney(line.price * line.quantity)}</strong></div>)}</section>
+      <button className={`checkout-row ${address ? 'chosen' : ''}`} onClick={() => go(`${route}&edit=address`)}><div><small>Адрес доставки</small><strong>{address || 'Выбрать адрес'}</strong></div>{address ? <Check /> : <ChevronRight />}</button>
+      {edit === 'address' && <div className="choice-sheet" role="dialog" aria-label="Выбор адреса"><b>Куда доставить</b>{Object.entries(deliveryAddresses).map(([id, value]) => <button key={id} onClick={() => go(`checkout?restaurant=${restaurant.id}&address=${id}${selectedSlot ? `&time=${selectedSlot.id}` : ''}`)}>{value}{selectedAddressId === id && <Check />}</button>)}</div>}
+      <button className={`checkout-row ${selectedSlot ? 'chosen' : ''}`} onClick={() => go(`${route}&edit=time`)}><div><small>Интервал</small><strong>{selectedSlot?.label || 'Выбрать время'}</strong></div>{selectedSlot ? <Check /> : <ChevronRight />}</button>
+      {edit === 'time' && <div className="choice-sheet" role="dialog" aria-label="Выбор времени"><b>Доступные интервалы</b>{slots.map((slot) => <button key={slot.id} onClick={() => go(`checkout?restaurant=${restaurant.id}${address ? `&address=${selectedAddressId}` : ''}&time=${slot.id}`)}>{slot.label}{selectedSlot?.id === slot.id && <Check />}</button>)}</div>}
+      <button className="checkout-row" onClick={() => go('loyalty')}><div><small>ЧОткая карта</small><strong>Посмотреть условия программы</strong></div><ChevronRight /></button>
+      <div className="payment-card"><CreditCard /><div><small>Способ оплаты</small><select value={payment} onChange={(event) => setPayment(event.target.value)}><option>Банковская карта</option><option>При получении</option></select></div><Check /></div>
+      <section className="checkout-lines"><h2>Состав заказа</h2>{lines.map((line) => <div key={`${line.id}:${line.modifier}`}><DishArt dish={line} compact /><span><b>{line.name}</b><small>{line.modifier || 'Стандартная подача'} · {line.quantity} × {formatMoney(line.price)}</small></span><strong>{formatMoney(line.price * line.quantity)}</strong></div>)}</section>
       <section className="checkout-contacts"><h2>Контакты</h2><label className="field"><span>Имя</span><input value={name} onChange={(event) => setName(event.target.value)} /></label><label className="field"><span>Телефон</span><input inputMode="tel" value={phone} onChange={(event) => setPhone(event.target.value)} /></label></section>
       <div className="order-total"><span>К оплате</span><strong>{formatMoney(total)}</strong></div>
-      <button className="sticky-primary" disabled={!ready} onClick={() => go(`payment-error?restaurant=${restaurant.id}&service=delivery&address=selected&time=1930`)}>{ready ? 'Перейти к оплате' : 'Заполните адрес, время и контакты'}</button>
+      <button className="sticky-primary" disabled={!ready} onClick={() => go(`payment-error?restaurant=${restaurant.id}&service=delivery&address=${selectedAddressId}&time=${selectedSlot?.id}`)}>{ready ? 'Перейти к оплате' : 'Заполните адрес, время и контакты'}</button>
     </Screen>
   )
 }
 
-function PaymentErrorPage({ restaurant, total, time }: { restaurant: Restaurant; total: number; time?: string | null }) {
+function PaymentErrorPage({ restaurant, total, time, addressId }: { restaurant: Restaurant; total: number; time?: string | null; addressId?: string | null }) {
   const displayTotal = total || 1880
   return (
     <Screen className="result-screen error-result">
@@ -600,21 +637,22 @@ function PaymentErrorPage({ restaurant, total, time }: { restaurant: Restaurant;
       <span className="kicker">Платёж отклонён</span>
       <h1>Оплата не прошла</h1>
       <p>Корзина, ресторан, доставка и выбранное время сохранены.</p>
-      <div className="restore-card"><RotateCcw /><div><strong>Можно продолжить без повтора</strong><span>{restaurant.name} · доставка в {time === '1930' ? '19:30' : 'выбранное время'} · {formatMoney(displayTotal)}</span></div></div>
-      <button className="primary-button" onClick={() => go(`order-success?restaurant=${restaurant.id}&service=delivery&time=${time || '1930'}`)}>Повторить оплату</button>
+      <div className="restore-card"><RotateCcw /><div><strong>Можно продолжить без повтора</strong><span>{restaurant.name} · {deliveryAddress(addressId) || 'адрес не выбран'} · {orderSlotLabel(time) || 'время не выбрано'} · {formatMoney(displayTotal)}</span></div></div>
+      <button className="primary-button" onClick={() => go(`order-success?restaurant=${restaurant.id}&service=delivery&address=${addressId || ''}&time=${time || ''}&id=${crypto.randomUUID()}`)}>Повторить оплату</button>
       <button className="secondary-button" onClick={() => go(`cart?restaurant=${restaurant.id}`)}>Вернуться в корзину</button>
     </Screen>
   )
 }
 
-function OrderSuccessPage({ restaurant, total, time, clearCart }: { restaurant: Restaurant; total: number; time?: string | null; clearCart: () => void }) {
+function OrderSuccessPage({ restaurant, order, clearCart }: { restaurant: Restaurant; order?: OrderRecord; clearCart: () => void }) {
+  if (!order) return <Screen className="result-screen"><div className="empty-state"><ReceiptText /><h1>Заказ не найден</h1><p>Оформите заказ из корзины, чтобы увидеть подтверждение.</p><button className="primary-button" onClick={() => go(`cart?restaurant=${restaurant.id}`)}>Открыть корзину</button></div></Screen>
   return (
     <Screen className="result-screen order-result">
       <div className="success-mark"><Check /></div>
       <span className="kicker">Оплата принята</span>
       <h1>Заказ подтверждён</h1>
-      <p>Корзина восстановлена после ошибки, заказ сохранён в истории.</p>
-      <div className="receipt"><ReceiptText /><div><small>{restaurant.name}</small><strong>{formatMoney(total)}</strong><span>Доставка · сегодня, {time === '1930' ? '19:30' : 'выбранное время'}</span></div></div>
+      <p>Заказ сохранён в истории этого браузера.</p>
+      <div className="receipt"><ReceiptText /><div><small>{restaurant.name}</small><strong>{formatMoney(order.total)}</strong><span>Доставка · {deliveryAddress(order.addressId)} · {orderSlotLabel(order.time)}</span></div></div>
       <button className="primary-button" onClick={() => { clearCart(); go('home') }}>На главную</button>
       <button className="secondary-button" onClick={() => go('history')}>История действий</button>
     </Screen>
@@ -625,12 +663,12 @@ function LoyaltyPage() {
   return (
     <>
       <Screen className="loyalty-screen">
-        <header className="loyalty-header"><span className="kicker">ЧОткая карта</span><h1>Одна карта.<br />Четыре ресторана.</h1><p>Подтверждено публичными страницами программы лояльности.</p></header>
+        <header className="loyalty-header"><span className="kicker">ЧОткая карта</span><h1>Одна карта.<br />Четыре ресторана.</h1><p>Кешбэк и правила программы — на официальном сайте.</p></header>
         <div className="loyalty-card">
-          <div className="loyalty-top"><img src={asset('assets/app-icon.webp')} alt="Иконка приложения «ЧОткая карта»" /><span>Баланс карты</span></div>
-          <strong>860 <small>бонусов</small></strong>
-          <div className="qr-large"><QrCode size={86} /><span>Код карты</span></div>
-          <div className="card-bottom"><span>1 бонус = 1 рубль</span><span>Уровень · базовый</span></div>
+          <div className="loyalty-top"><img src={asset('assets/app-icon.webp')} alt="Иконка приложения «ЧОткая карта»" /><span>Программа лояльности</span></div>
+          <strong>ЧОткая<br />карта</strong>
+          <p className="loyalty-explain">Этот прототип не подключён к личному кабинету. Баланс и код карты можно посмотреть только в официальном сервисе.</p>
+          <a className="loyalty-official" href="https://restoran-cho.ru/card" target="_blank" rel="noreferrer">Открыть карту <ArrowRight size={17} /></a>
         </div>
         <section className="rules-card"><h2>Публичные условия</h2><ul><li>Кешбэк растёт от 3% до 10% в зависимости от визитов.</li><li>Бонусами можно оплатить до 20% покупки.</li><li>Накопленные бонусы активны 90 дней и начисляются через 12 часов.</li></ul><a href="https://restoran-cho.ru/card" target="_blank" rel="noreferrer">Официальные правила <ArrowRight size={16} /></a></section>
         <section className="brand-dots"><span>Чо-Чо</span><span>Птичка-Невеличка</span><span>Катенька-Катюша</span><span>Bésame mucho</span></section>
@@ -641,11 +679,11 @@ function LoyaltyPage() {
 }
 
 function ProfilePage() {
-  const [name, setName] = useState('Алексей')
-  const [phone, setPhone] = useState('+7 900 000-00-00')
+  const [name, setName] = useState(() => readProfile().name)
+  const [phone, setPhone] = useState(() => readProfile().phone)
   const [saved, setSaved] = useState(false)
-  const valid = name.trim().length >= 2 && phone.replace(/\D/g, '').length >= 6
-  return <><Screen className="profile-screen"><header className="history-header"><span className="kicker">Моё</span><h1>Профиль и сохранённые действия</h1></header><section className="profile-form"><label className="field"><span>Имя</span><input value={name} onChange={(event) => { setName(event.target.value); setSaved(false) }} /></label><label className="field"><span>Телефон</span><input inputMode="tel" value={phone} onChange={(event) => { setPhone(event.target.value); setSaved(false) }} /></label><button className="primary-button" disabled={!valid} onClick={() => setSaved(true)}>{saved ? 'Контакты сохранены' : 'Сохранить контакты'}</button></section><section className="profile-actions"><button onClick={() => go('history')}><ReceiptText /><span><b>История</b><small>Заказы и посещения</small></span><ChevronRight /></button><button onClick={() => go('favorites')}><Heart /><span><b>Избранное</b><small>Сохранённые рестораны</small></span><ChevronRight /></button><button onClick={() => go('loyalty')}><WalletCards /><span><b>ЧОткая карта</b><small>Баланс и правила</small></span><ChevronRight /></button></section></Screen><BottomNav active="profile" /></>
+  const valid = name.trim().length >= 2 && phone.replace(/\D/g, '').length >= 11
+  return <><Screen className="profile-screen"><header className="history-header"><span className="kicker">Моё</span><h1>Профиль и сохранённые действия</h1></header><section className="profile-form"><label className="field"><span>Имя</span><input value={name} onChange={(event) => { setName(event.target.value); setSaved(false) }} /></label><label className="field"><span>Телефон</span><input inputMode="tel" value={phone} onChange={(event) => { setPhone(event.target.value); setSaved(false) }} placeholder="+7 900 000-00-00" /></label><button className="primary-button" disabled={!valid} onClick={() => { localStorage.setItem('chotkie-profile', JSON.stringify({ name: name.trim(), phone: phone.trim() })); setSaved(true) }}>{saved ? 'Контакты сохранены' : 'Сохранить контакты'}</button></section><section className="profile-actions"><button onClick={() => go('history')}><ReceiptText /><span><b>История</b><small>Заказы и посещения</small></span><ChevronRight /></button><button onClick={() => go('favorites')}><Heart /><span><b>Избранное</b><small>Сохранённые рестораны</small></span><ChevronRight /></button><button onClick={() => go('loyalty')}><WalletCards /><span><b>ЧОткая карта</b><small>Правила и официальный сервис</small></span><ChevronRight /></button></section></Screen><BottomNav active="profile" /></>
 }
 
 function FavoritesPage({ favorites }: { favorites: RestaurantId[] }) {
@@ -653,13 +691,12 @@ function FavoritesPage({ favorites }: { favorites: RestaurantId[] }) {
   return <Screen className="history-screen"><BackHeader title="Избранное" overline="Моё" />{savedRestaurants.length ? <div className="restaurant-list">{savedRestaurants.map((restaurant) => <button className="restaurant-list-card" key={restaurant.id} onClick={() => go(`restaurant?id=${restaurant.id}`)}><RestaurantVisual restaurant={restaurant} compact /><div className="list-meta"><span>Открыть ресторан</span><ChevronRight /></div></button>)}</div> : <div className="empty-state"><Heart /><h1>Пока ничего нет</h1><p>Добавьте ресторан сердцем на его странице.</p><button className="primary-button" onClick={() => go('discover')}>Выбрать ресторан</button></div>}</Screen>
 }
 
-function HistoryPage({ repeatOrder }: { repeatOrder: () => void }) {
+function HistoryPage({ orders, repeatOrder }: { orders: OrderRecord[]; repeatOrder: (order: OrderRecord) => void }) {
   return (
     <>
       <Screen className="history-screen">
         <header className="history-header"><span className="kicker">Моё</span><h1>История и быстрый возврат</h1></header>
-        <section className="history-section"><h2>Недавний заказ</h2><div className="past-order"><div className="past-top"><span><strong>Чо-Чо</strong><small>{formatKrasnodarDate(-4)} · доставка</small></span><b>1 880 ₽</b></div><p><Check /> Доступность и цена проверяются перед повтором</p><button className="primary-button" onClick={repeatOrder}><RotateCcw /> Повторить заказ</button></div></section>
-        <section className="history-section"><h2>Посещения</h2><button className="visit-card" onClick={() => go('restaurant?id=ptichka')}><img src={asset('assets/ptichka.webp')} alt="" /><div><small>{formatKrasnodarDate(-8)} · 2 гостя</small><strong>Птичка-Невеличка</strong><span>Посмотреть ресторан снова</span></div><ChevronRight /></button></section>
+        <section className="history-section"><h2>Заказы</h2>{orders.length ? orders.map((order) => <div className="past-order" key={order.id}><div className="past-top"><span><strong>{findRestaurant(order.restaurantId).name}</strong><small>{new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: 'numeric', month: 'long' }).format(new Date(order.createdAt))} · доставка</small></span><b>{formatMoney(order.total)}</b></div><p><Check /> {order.lines.map((line) => `${line.quantity} × ${line.name}${line.modifier && line.modifier !== 'Стандартная подача' ? ` (${line.modifier.toLowerCase()})` : ''}`).join(', ')}</p><button className="primary-button" onClick={() => repeatOrder(order)}><RotateCcw /> Повторить заказ</button></div>) : <div className="empty-state"><ReceiptText /><h1>Заказов пока нет</h1><p>Когда оформите заказ, он появится здесь.</p><button className="primary-button" onClick={() => go('discover')}>Выбрать ресторан</button></div>}</section>
         <section className="history-section last-section"><h2>Попробовать в следующий раз</h2><button className="visit-card" onClick={() => go('restaurant?id=besame')}><img src={asset('assets/besame.webp')} alt="" /><div><small>Рекомендация другого ресторана</small><strong>Bésame mucho</strong><span>Свидание и долгий завтрак</span></div><ChevronRight /></button></section>
       </Screen>
       <BottomNav active="profile" />
@@ -684,8 +721,9 @@ function AppShell({ children }: { children: ReactNode }) {
 export function App() {
   const [location, setLocation] = useState(() => parseHash(window.location.hash))
   const [carts, setCarts] = useState<Carts>(readCarts)
-  const [booking, setBookingState] = useState<BookingState>(initialBooking)
+  const [booking, setBookingState] = useState<BookingState>(() => ({ ...initialBooking, ...readProfile() }))
   const [favorites, setFavorites] = useState<RestaurantId[]>(readFavorites)
+  const [orders, setOrders] = useState<OrderRecord[]>(readOrders)
 
   useEffect(() => {
     if (!window.location.hash) go('home')
@@ -696,14 +734,24 @@ export function App() {
 
   useEffect(() => localStorage.setItem('chotkie-demo-carts', JSON.stringify(carts)), [carts])
   useEffect(() => localStorage.setItem('chotkie-favorites', JSON.stringify(favorites)), [favorites])
+  useEffect(() => localStorage.setItem('chotkie-demo-orders', JSON.stringify(orders)), [orders])
   useEffect(() => {
     window.scrollTo({ top: 0 })
     document.querySelector('.phone-frame')?.scrollTo({ top: 0 })
-    if (/^(15|16|17) августа$/i.test(booking.date)) setBookingState({ ...booking, date: bookingDates[0] })
   }, [location.route, location.params.toString()])
 
   const restaurant = useMemo(() => findRestaurant(location.params.get('restaurant') || location.params.get('id')), [location])
   const dish = useMemo(() => findDish(location.params.get('id')), [location])
+
+  useEffect(() => {
+    if (location.route !== 'order-success') return
+    const id = location.params.get('id')
+    const addressId = location.params.get('address')
+    const time = location.params.get('time')
+    const lines = carts[restaurant.id]
+    if (!id || !deliveryAddress(addressId) || !orderSlotLabel(time) || !lines.length) return
+    setOrders((current) => current.some((order) => order.id === id) ? current : [{ id, restaurantId: restaurant.id, createdAt: new Date().toISOString(), addressId: addressId!, time: time!, lines, total: cartTotal(lines) }, ...current])
+  }, [location, carts, restaurant.id])
 
   useEffect(() => {
     if (location.route !== 'payment-error' || carts[restaurant.id].length > 0) return
@@ -713,20 +761,23 @@ export function App() {
     setCarts(seeded)
   }, [carts, location, restaurant.id])
 
-  function addToCart(nextDish: Dish) {
-    setCarts((current) => addLine(current, nextDish))
+  function addToCart(nextDish: Dish, modifier: string) {
+    setCarts((current) => addLine(current, nextDish, modifier))
   }
 
   function setBooking(next: BookingState) {
     setBookingState(next)
   }
 
-  function repeatOrder() {
-    const choDishes = dishes.filter((item) => item.restaurantId === 'cho' && item.available)
-    let next: Carts = { ...carts, cho: [] }
-    choDishes.forEach((item) => { next = addLine(next, item) })
+  function repeatOrder(order: OrderRecord) {
+    let next: Carts = { ...carts, [order.restaurantId]: [] }
+    for (const line of order.lines) {
+      const currentDish = dishes.find((item) => item.id === line.id && item.restaurantId === order.restaurantId && item.available)
+      if (!currentDish) continue
+      for (let count = 0; count < line.quantity; count += 1) next = addLine(next, currentDish, line.modifier || 'Стандартная подача')
+    }
     setCarts(next)
-    go('cart?restaurant=cho&repeat=1')
+    go(`cart?restaurant=${order.restaurantId}&repeat=1`)
   }
 
   let page: ReactNode
@@ -740,12 +791,12 @@ export function App() {
     case 'event': page = <EventPage id={location.params.get('id')} />; break
     case 'menu': page = <MenuPage restaurant={restaurant} mode={location.params.get('mode')} category={location.params.get('category')} />; break
     case 'dish': page = <DishPage dish={dish} addToCart={addToCart} />; break
-    case 'cart': page = <CartPage restaurant={restaurant} lines={carts[restaurant.id]} setQuantity={(id, delta) => setCarts((current) => updateLine(current, restaurant.id, id, delta))} />; break
-    case 'checkout': page = <CheckoutPage restaurant={restaurant} lines={carts[restaurant.id]} addressSelected={location.params.get('address') === 'selected'} time={location.params.get('time')} edit={location.params.get('edit')} />; break
-    case 'payment-error': page = <PaymentErrorPage restaurant={restaurant} total={cartTotal(carts[restaurant.id])} time={location.params.get('time')} />; break
-    case 'order-success': page = <OrderSuccessPage restaurant={restaurant} total={cartTotal(carts[restaurant.id])} time={location.params.get('time')} clearCart={() => setCarts((current) => ({ ...current, [restaurant.id]: [] }))} />; break
+    case 'cart': page = <CartPage restaurant={restaurant} lines={carts[restaurant.id]} setQuantity={(id, delta, modifier) => setCarts((current) => updateLine(current, restaurant.id, id, delta, modifier))} />; break
+    case 'checkout': page = <CheckoutPage restaurant={restaurant} lines={carts[restaurant.id]} addressId={location.params.get('address')} time={location.params.get('time')} edit={location.params.get('edit')} />; break
+    case 'payment-error': page = <PaymentErrorPage restaurant={restaurant} total={cartTotal(carts[restaurant.id])} time={location.params.get('time')} addressId={location.params.get('address')} />; break
+    case 'order-success': page = <OrderSuccessPage restaurant={restaurant} order={orders.find((order) => order.id === location.params.get('id'))} clearCart={() => setCarts((current) => ({ ...current, [restaurant.id]: [] }))} />; break
     case 'loyalty': page = <LoyaltyPage />; break
-    case 'history': page = <HistoryPage repeatOrder={repeatOrder} />; break
+    case 'history': page = <HistoryPage orders={orders} repeatOrder={repeatOrder} />; break
     case 'profile': page = <ProfilePage />; break
     case 'favorites': page = <FavoritesPage favorites={favorites} />; break
     default: page = <HomePage />

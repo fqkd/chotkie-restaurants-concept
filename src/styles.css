@@ -227,6 +227,7 @@ a { color: inherit; }
 .dish-card span { margin-top: 10px; font-size: 11px; font-weight: 800; }
 .dish-card.unavailable { filter: grayscale(.75); opacity: .62; }
 .dish-art { position: relative; width: 100%; height: 100%; min-height: 210px; overflow: hidden; display: grid; place-items: center; background: radial-gradient(circle at 65% 25%, rgba(255,255,255,.7), transparent 28%), linear-gradient(145deg, #e8c57c, #a96538); }
+.dish-art.photo { display: block; object-fit: cover; background: none; }
 .dish-art.ptichka { background: radial-gradient(circle at 65% 25%, rgba(255,255,255,.75), transparent 28%), linear-gradient(145deg, #f4d66c, #b47435); }
 .dish-art.katenka { background: radial-gradient(circle at 65% 25%, rgba(255,255,255,.72), transparent 28%), linear-gradient(145deg, #dba486, #7d2631); }
 .dish-art.besame { background: radial-gradient(circle at 65% 25%, rgba(255,255,255,.72), transparent 28%), linear-gradient(145deg, #eaa58e, #8b4f52); }
@@ -246,6 +247,7 @@ a { color: inherit; }
 .dish-hero > img { width: 100%; height: 100%; object-fit: cover; }
 .dish-hero > span { position: absolute; right: 14px; bottom: 14px; padding: 6px 8px; border-radius: 99px; background: rgba(20,19,17,.75); color: #fff; font-size: 7px; font-weight: 800; text-transform: uppercase; }
 .dish-copy { padding: 24px 18px 0; }
+.dish-copy.has-modifier { padding-bottom: 72px; }
 .dish-copy h1 { margin: 6px 0 12px; font: 600 30px/1.04 'Unbounded', sans-serif; letter-spacing: -.05em; }
 .dish-copy > p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .dish-price { display: flex; margin-top: 18px; align-items: baseline; gap: 10px; }
@@ -316,6 +318,8 @@ a { color: inherit; }
 .loyalty-top span { color: #aaa7a0; font-size: 8px; text-transform: uppercase; }
 .loyalty-card > strong { display: block; margin-top: 24px; font: 600 35px/1 'Unbounded', sans-serif; }
 .loyalty-card > strong small { font: 500 11px 'Manrope', sans-serif; }
+.loyalty-explain { position: relative; z-index: 1; max-width: 250px; color: #d6d2c8; font-size: 11px; line-height: 1.55; }
+.loyalty-official { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 9px; margin-top: 18px; padding: 12px 15px; border-radius: 12px; background: var(--acid); color: var(--ink); font-size: 11px; font-weight: 800; text-decoration: none; }
 .qr-large { position: absolute; z-index: 1; right: 18px; bottom: 52px; display: grid; width: 116px; height: 116px; place-items: center; border-radius: 17px; background: #fff; color: #111; }
 .qr-large span { position: absolute; bottom: 7px; font-size: 7px; font-weight: 800; }
 .card-bottom { position: absolute; z-index: 2; bottom: 18px; left: 18px; right: 18px; display: flex; justify-content: space-between; color: #bdb9b1; font-size: 8px; }

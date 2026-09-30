@@ -24,10 +24,12 @@ export type Dish = {
   description: string
   price: number
   image: string
+  category: 'appetizer' | 'hot' | 'dessert'
+  presentationOption?: string
   available: boolean
 }
 
-export type CartLine = Dish & { quantity: number }
+export type CartLine = Dish & { quantity: number; modifier: string }
 export type Carts = Record<RestaurantId, CartLine[]>
 
 export const restaurants: Restaurant[] = [
@@ -102,54 +104,64 @@ export const dishes: Dish[] = [
     id: 'sirena',
     restaurantId: 'cho',
     name: 'Тартар из мраморной говядины с фри из батата',
-    description: 'Говядина, батат и авторская подача. Состав и цена уточняются перед заказом.',
+    description: 'Мраморная говядина и фри из батата.',
     price: 890,
-    image: 'assets/cho-cho.webp',
+    image: 'assets/sirena.webp',
+    category: 'appetizer',
+    presentationOption: 'Без фри из батата',
     available: true,
   },
   {
     id: 'seafood',
     restaurantId: 'cho',
     name: 'Сковородка морепродуктов',
-    description: 'Горячее блюдо из раздела хитов. Состав и цена уточняются перед заказом.',
+    description: 'Морепродукты в горячей сковородке.',
     price: 990,
-    image: 'assets/cho-interior.webp',
+    image: 'assets/seafood.webp',
+    category: 'hot',
     available: true,
   },
   {
     id: 'bird',
     restaurantId: 'ptichka',
-    name: 'Блюдо из птицы от шефа',
-    description: 'Сезонная подача; состав и доступность уточняются в действующем меню.',
-    price: 760,
-    image: 'assets/ptichka.webp',
+    name: 'Паштет из куриной печени с брусничным соусом',
+    description: 'Паштет, фундук, брусничный соус и чиабатта.',
+    price: 520,
+    image: 'assets/bird.webp',
+    category: 'appetizer',
+    presentationOption: 'Без брусничного соуса',
     available: true,
   },
   {
     id: 'seasonal',
     restaurantId: 'ptichka',
-    name: 'Сезонная позиция',
-    description: 'Сезонная позиция временно недоступна для заказа.',
-    price: 590,
-    image: 'assets/ptichka.webp',
-    available: false,
+    name: 'Тар-тар из телёнка с перепелиным яйцом',
+    description: 'Мраморная говядина, Grana Padano, трюфельный крем, яйцо и пшеничный хлеб.',
+    price: 690,
+    image: 'assets/seasonal.webp',
+    category: 'appetizer',
+    presentationOption: 'Без трюфельного крема',
+    available: true,
   },
   {
     id: 'katenka-pie',
     restaurantId: 'katenka',
-    name: 'Пирог ручной работы',
-    description: 'Начинка и вес выбираются по актуальному меню ресторана.',
-    price: 740,
-    image: 'assets/katenka.webp',
+    name: 'Пирог с томатами и моцареллой',
+    description: 'Лепёшка, томатный соус, моцарелла, черри, руккола и оливковое масло.',
+    price: 560,
+    image: 'assets/katenka-pie.webp',
+    category: 'hot',
     available: true,
   },
   {
     id: 'katenka-dessert',
     restaurantId: 'katenka',
-    name: 'Десерт из витрины',
-    description: 'Состав и наличие зависят от предложения ресторана на выбранный день.',
-    price: 520,
-    image: 'assets/katenka.webp',
+    name: 'Наполеон с брусничным вареньем',
+    description: 'Слоёное тесто на сливочном масле, заварной крем и брусничное варенье.',
+    price: 490,
+    image: 'assets/katenka-dessert.webp',
+    category: 'dessert',
+    presentationOption: 'Без брусничного варенья',
     available: true,
   },
 ]
@@ -160,18 +172,18 @@ export function cartTotal(lines: CartLine[]) {
   return lines.reduce((total, line) => total + line.price * line.quantity, 0)
 }
 
-export function addLine(carts: Carts, dish: Dish): Carts {
+export function addLine(carts: Carts, dish: Dish, modifier = 'Стандартная подача'): Carts {
   const lines = carts[dish.restaurantId]
-  const existing = lines.find((line) => line.id === dish.id)
+  const existing = lines.find((line) => line.id === dish.id && (line.modifier || 'Стандартная подача') === modifier)
   const next = existing
-    ? lines.map((line) => (line.id === dish.id ? { ...line, quantity: line.quantity + 1 } : line))
-    : [...lines, { ...dish, quantity: 1 }]
+    ? lines.map((line) => (line === existing ? { ...line, quantity: line.quantity + 1 } : line))
+    : [...lines, { ...dish, modifier, quantity: 1 }]
   return { ...carts, [dish.restaurantId]: next }
 }
 
-export function updateLine(carts: Carts, restaurantId: RestaurantId, dishId: string, delta: number): Carts {
+export function updateLine(carts: Carts, restaurantId: RestaurantId, dishId: string, delta: number, modifier = 'Стандартная подача'): Carts {
   const next = carts[restaurantId]
-    .map((line) => (line.id === dishId ? { ...line, quantity: line.quantity + delta } : line))
+    .map((line) => (line.id === dishId && (line.modifier || 'Стандартная подача') === modifier ? { ...line, quantity: line.quantity + delta } : line))
     .filter((line) => line.quantity > 0)
   return { ...carts, [restaurantId]: next }
 }
