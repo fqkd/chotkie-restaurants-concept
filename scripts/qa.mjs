@@ -49,6 +49,10 @@ async function inspect(path, width, height, name) {
   const response = await page.goto(`${base}${path}`, { waitUntil: 'networkidle' })
   if (!response?.ok()) throw new Error(`${path}: HTTP ${response?.status()}`)
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)
+  if (path.includes('/#dish?restaurant=cho')) {
+    const photo = await page.locator('.dish-hero img').evaluate((image) => image.complete && image.naturalWidth > 0)
+    if (!photo) throw new Error(`${path}: фотография блюда не загрузилась`)
+  }
   if (overflow) report.overflows.push({ path, width })
   if (errors.length) report.consoleErrors.push({ path, width, errors })
   await page.screenshot({ path: `qa-output/${name}-${width}.png`, fullPage: true })
@@ -81,6 +85,8 @@ const regressionPaths = [
   '/#event?id=live-night',
   '/#menu?restaurant=cho&mode=order',
   '/#menu?restaurant=cho&mode=order&category=drinks',
+  '/#dish?restaurant=cho&id=sirena',
+  '/#dish?restaurant=cho&id=seafood',
   '/#dish?restaurant=ptichka&id=seasonal',
   '/#cart?restaurant=cho',
   '/#checkout?restaurant=cho&address=selected&time=1930',

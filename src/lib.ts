@@ -104,7 +104,7 @@ export const dishes: Dish[] = [
     name: 'Тартар из мраморной говядины с фри из батата',
     description: 'Говядина, батат и авторская подача. Состав и цена уточняются перед заказом.',
     price: 890,
-    image: 'assets/cho-cho.webp',
+    image: 'assets/sirena.webp',
     available: true,
   },
   {
@@ -113,7 +113,7 @@ export const dishes: Dish[] = [
     name: 'Сковородка морепродуктов',
     description: 'Горячее блюдо из раздела хитов. Состав и цена уточняются перед заказом.',
     price: 990,
-    image: 'assets/cho-interior.webp',
+    image: 'assets/seafood.webp',
     available: true,
   },
   {

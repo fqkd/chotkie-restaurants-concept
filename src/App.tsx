@@ -178,6 +178,7 @@ function RestaurantVisual({ restaurant, compact = false }: { restaurant: Restaur
 }
 
 function DishArt({ dish, compact = false }: { dish: Dish; compact?: boolean }) {
+  if (dish.id === 'sirena' || dish.id === 'seafood') return <img className={`dish-art photo ${compact ? 'compact' : ''}`} src={asset(dish.image)} alt="" loading="lazy" />
   return <div className={`dish-art ${dish.restaurantId} ${compact ? 'compact' : ''}`} aria-label={`Иллюстрация блюда «${dish.name}»`}><span><Utensils /></span><i /><i /></div>
 }
 
