@@ -37,6 +37,7 @@ import {
   restaurants,
   updateLine,
   type Carts,
+  type CartLine,
   type Dish,
   type Restaurant,
   type RestaurantId,
@@ -81,6 +82,25 @@ function readCarts(): Carts {
 function readFavorites(): RestaurantId[] {
   try {
     return JSON.parse(localStorage.getItem('chotkie-favorites') || '[]')
+  } catch {
+    return []
+  }
+}
+
+type OrderRecord = {
+  id: string
+  restaurantId: RestaurantId
+  createdAt: string
+  addressId: string
+  time: string
+  lines: CartLine[]
+  total: number
+}
+
+function readOrders(): OrderRecord[] {
+  try {
+    const value = JSON.parse(localStorage.getItem('chotkie-demo-orders') || '[]')
+    return Array.isArray(value) ? value : []
   } catch {
     return []
   }
@@ -228,7 +248,7 @@ function HomePage() {
           </div>
           <button className="history-teaser" onClick={() => go('history')}>
             <div className="history-icon"><RotateCcw size={22} /></div>
-            <div><strong>Повторить заказ из «Чо-Чо»</strong><span>Сначала проверим цену и доступность</span></div>
+            <div><strong>История заказов</strong><span>Ваши оформленные заказы и повтор</span></div>
             <ChevronRight size={20} />
           </button>
         </section>
@@ -611,20 +631,21 @@ function PaymentErrorPage({ restaurant, total, time, addressId }: { restaurant: 
       <h1>Оплата не прошла</h1>
       <p>Корзина, ресторан, доставка и выбранное время сохранены.</p>
       <div className="restore-card"><RotateCcw /><div><strong>Можно продолжить без повтора</strong><span>{restaurant.name} · {deliveryAddress(addressId) || 'адрес не выбран'} · {orderSlotLabel(time) || 'время не выбрано'} · {formatMoney(displayTotal)}</span></div></div>
-      <button className="primary-button" onClick={() => go(`order-success?restaurant=${restaurant.id}&service=delivery&address=${addressId || ''}&time=${time || ''}`)}>Повторить оплату</button>
+      <button className="primary-button" onClick={() => go(`order-success?restaurant=${restaurant.id}&service=delivery&address=${addressId || ''}&time=${time || ''}&id=${crypto.randomUUID()}`)}>Повторить оплату</button>
       <button className="secondary-button" onClick={() => go(`cart?restaurant=${restaurant.id}`)}>Вернуться в корзину</button>
     </Screen>
   )
 }
 
-function OrderSuccessPage({ restaurant, total, time, addressId, clearCart }: { restaurant: Restaurant; total: number; time?: string | null; addressId?: string | null; clearCart: () => void }) {
+function OrderSuccessPage({ restaurant, order, clearCart }: { restaurant: Restaurant; order?: OrderRecord; clearCart: () => void }) {
+  if (!order) return <Screen className="result-screen"><div className="empty-state"><ReceiptText /><h1>Заказ не найден</h1><p>Оформите заказ из корзины, чтобы увидеть подтверждение.</p><button className="primary-button" onClick={() => go(`cart?restaurant=${restaurant.id}`)}>Открыть корзину</button></div></Screen>
   return (
     <Screen className="result-screen order-result">
       <div className="success-mark"><Check /></div>
       <span className="kicker">Оплата принята</span>
       <h1>Заказ подтверждён</h1>
-      <p>Корзина восстановлена после ошибки, заказ сохранён в истории.</p>
-      <div className="receipt"><ReceiptText /><div><small>{restaurant.name}</small><strong>{formatMoney(total)}</strong><span>Доставка · {deliveryAddress(addressId) || 'адрес не выбран'} · {orderSlotLabel(time) || 'время не выбрано'}</span></div></div>
+      <p>Заказ сохранён в истории этого браузера.</p>
+      <div className="receipt"><ReceiptText /><div><small>{restaurant.name}</small><strong>{formatMoney(order.total)}</strong><span>Доставка · {deliveryAddress(order.addressId)} · {orderSlotLabel(order.time)}</span></div></div>
       <button className="primary-button" onClick={() => { clearCart(); go('home') }}>На главную</button>
       <button className="secondary-button" onClick={() => go('history')}>История действий</button>
     </Screen>
@@ -663,13 +684,12 @@ function FavoritesPage({ favorites }: { favorites: RestaurantId[] }) {
   return <Screen className="history-screen"><BackHeader title="Избранное" overline="Моё" />{savedRestaurants.length ? <div className="restaurant-list">{savedRestaurants.map((restaurant) => <button className="restaurant-list-card" key={restaurant.id} onClick={() => go(`restaurant?id=${restaurant.id}`)}><RestaurantVisual restaurant={restaurant} compact /><div className="list-meta"><span>Открыть ресторан</span><ChevronRight /></div></button>)}</div> : <div className="empty-state"><Heart /><h1>Пока ничего нет</h1><p>Добавьте ресторан сердцем на его странице.</p><button className="primary-button" onClick={() => go('discover')}>Выбрать ресторан</button></div>}</Screen>
 }
 
-function HistoryPage({ repeatOrder }: { repeatOrder: () => void }) {
+function HistoryPage({ orders, repeatOrder }: { orders: OrderRecord[]; repeatOrder: (order: OrderRecord) => void }) {
   return (
     <>
       <Screen className="history-screen">
         <header className="history-header"><span className="kicker">Моё</span><h1>История и быстрый возврат</h1></header>
-        <section className="history-section"><h2>Недавний заказ</h2><div className="past-order"><div className="past-top"><span><strong>Чо-Чо</strong><small>{formatKrasnodarDate(-4)} · доставка</small></span><b>1 880 ₽</b></div><p><Check /> Доступность и цена проверяются перед повтором</p><button className="primary-button" onClick={repeatOrder}><RotateCcw /> Повторить заказ</button></div></section>
-        <section className="history-section"><h2>Посещения</h2><button className="visit-card" onClick={() => go('restaurant?id=ptichka')}><img src={asset('assets/ptichka.webp')} alt="" /><div><small>{formatKrasnodarDate(-8)} · 2 гостя</small><strong>Птичка-Невеличка</strong><span>Посмотреть ресторан снова</span></div><ChevronRight /></button></section>
+        <section className="history-section"><h2>Заказы</h2>{orders.length ? orders.map((order) => <div className="past-order" key={order.id}><div className="past-top"><span><strong>{findRestaurant(order.restaurantId).name}</strong><small>{new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: 'numeric', month: 'long' }).format(new Date(order.createdAt))} · доставка</small></span><b>{formatMoney(order.total)}</b></div><p><Check /> {order.lines.map((line) => `${line.quantity} × ${line.name}`).join(', ')}</p><button className="primary-button" onClick={() => repeatOrder(order)}><RotateCcw /> Повторить заказ</button></div>) : <div className="empty-state"><ReceiptText /><h1>Заказов пока нет</h1><p>Когда оформите заказ в прототипе, он появится здесь.</p><button className="primary-button" onClick={() => go('discover')}>Выбрать ресторан</button></div>}</section>
         <section className="history-section last-section"><h2>Попробовать в следующий раз</h2><button className="visit-card" onClick={() => go('restaurant?id=besame')}><img src={asset('assets/besame.webp')} alt="" /><div><small>Рекомендация другого ресторана</small><strong>Bésame mucho</strong><span>Свидание и долгий завтрак</span></div><ChevronRight /></button></section>
       </Screen>
       <BottomNav active="profile" />
@@ -696,6 +716,7 @@ export function App() {
   const [carts, setCarts] = useState<Carts>(readCarts)
   const [booking, setBookingState] = useState<BookingState>(initialBooking)
   const [favorites, setFavorites] = useState<RestaurantId[]>(readFavorites)
+  const [orders, setOrders] = useState<OrderRecord[]>(readOrders)
 
   useEffect(() => {
     if (!window.location.hash) go('home')
@@ -706,6 +727,7 @@ export function App() {
 
   useEffect(() => localStorage.setItem('chotkie-demo-carts', JSON.stringify(carts)), [carts])
   useEffect(() => localStorage.setItem('chotkie-favorites', JSON.stringify(favorites)), [favorites])
+  useEffect(() => localStorage.setItem('chotkie-demo-orders', JSON.stringify(orders)), [orders])
   useEffect(() => {
     window.scrollTo({ top: 0 })
     document.querySelector('.phone-frame')?.scrollTo({ top: 0 })
@@ -713,6 +735,16 @@ export function App() {
 
   const restaurant = useMemo(() => findRestaurant(location.params.get('restaurant') || location.params.get('id')), [location])
   const dish = useMemo(() => findDish(location.params.get('id')), [location])
+
+  useEffect(() => {
+    if (location.route !== 'order-success') return
+    const id = location.params.get('id')
+    const addressId = location.params.get('address')
+    const time = location.params.get('time')
+    const lines = carts[restaurant.id]
+    if (!id || !deliveryAddress(addressId) || !orderSlotLabel(time) || !lines.length) return
+    setOrders((current) => current.some((order) => order.id === id) ? current : [{ id, restaurantId: restaurant.id, createdAt: new Date().toISOString(), addressId: addressId!, time: time!, lines, total: cartTotal(lines) }, ...current])
+  }, [location, carts, restaurant.id])
 
   useEffect(() => {
     if (location.route !== 'payment-error' || carts[restaurant.id].length > 0) return
@@ -730,12 +762,15 @@ export function App() {
     setBookingState(next)
   }
 
-  function repeatOrder() {
-    const choDishes = dishes.filter((item) => item.restaurantId === 'cho' && item.available)
-    let next: Carts = { ...carts, cho: [] }
-    choDishes.forEach((item) => { next = addLine(next, item) })
+  function repeatOrder(order: OrderRecord) {
+    let next: Carts = { ...carts, [order.restaurantId]: [] }
+    for (const line of order.lines) {
+      const currentDish = dishes.find((item) => item.id === line.id && item.restaurantId === order.restaurantId && item.available)
+      if (!currentDish) continue
+      for (let count = 0; count < line.quantity; count += 1) next = addLine(next, currentDish)
+    }
     setCarts(next)
-    go('cart?restaurant=cho&repeat=1')
+    go(`cart?restaurant=${order.restaurantId}&repeat=1`)
   }
 
   let page: ReactNode
@@ -752,9 +787,9 @@ export function App() {
     case 'cart': page = <CartPage restaurant={restaurant} lines={carts[restaurant.id]} setQuantity={(id, delta) => setCarts((current) => updateLine(current, restaurant.id, id, delta))} />; break
     case 'checkout': page = <CheckoutPage restaurant={restaurant} lines={carts[restaurant.id]} addressId={location.params.get('address')} time={location.params.get('time')} edit={location.params.get('edit')} />; break
     case 'payment-error': page = <PaymentErrorPage restaurant={restaurant} total={cartTotal(carts[restaurant.id])} time={location.params.get('time')} addressId={location.params.get('address')} />; break
-    case 'order-success': page = <OrderSuccessPage restaurant={restaurant} total={cartTotal(carts[restaurant.id])} time={location.params.get('time')} addressId={location.params.get('address')} clearCart={() => setCarts((current) => ({ ...current, [restaurant.id]: [] }))} />; break
+    case 'order-success': page = <OrderSuccessPage restaurant={restaurant} order={orders.find((order) => order.id === location.params.get('id'))} clearCart={() => setCarts((current) => ({ ...current, [restaurant.id]: [] }))} />; break
     case 'loyalty': page = <LoyaltyPage />; break
-    case 'history': page = <HistoryPage repeatOrder={repeatOrder} />; break
+    case 'history': page = <HistoryPage orders={orders} repeatOrder={repeatOrder} />; break
     case 'profile': page = <ProfilePage />; break
     case 'favorites': page = <FavoritesPage favorites={favorites} />; break
     default: page = <HomePage />

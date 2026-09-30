@@ -169,6 +169,7 @@ await scenario('повод → ресторан → бронирование →
   await page.locator('.restaurant-list-card').filter({ hasText: 'Bésame mucho' }).click()
   await page.getByRole('button', { name: /Открыть «Bésame mucho»/ }).click()
   await page.getByRole('button', { name: 'Забронировать для свидания' }).click()
+  await page.getByRole('button', { name: 'Завтра' }).click()
   await page.getByRole('button', { name: '20:00' }).click()
   await page.getByRole('button', { name: /Продолжить/ }).click()
   await page.getByRole('button', { name: 'Отправить запрос' }).click()
@@ -219,6 +220,12 @@ await scenario('позиция → корзина → ошибка оплаты 
   await page.getByRole('heading', { name: /Заказ подтверждён/ }).waitFor()
   const receipt = await page.locator('.receipt').innerText()
   if (!receipt.includes('Северная, 305') || !receipt.includes(secondSlot)) throw new Error('В заказе потеряны адрес или выбранный интервал')
+  await page.getByRole('button', { name: 'История действий' }).click()
+  await page.getByRole('heading', { name: 'История и быстрый возврат' }).waitFor()
+  if (await page.locator('.past-order').count() !== 1) throw new Error('Оформленный заказ не записан в историю')
+  await page.getByRole('button', { name: 'Повторить заказ' }).click()
+  await page.getByText('Тартар из мраморной говядины с фри из батата').waitFor()
+  if (!page.url().includes('restaurant=cho')) throw new Error('Повтор открыл корзину другого ресторана')
 })
 
 await scenario('отдельные корзины ресторанов', async (page) => {
