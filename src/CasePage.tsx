@@ -102,7 +102,7 @@ export function CasePage() {
       <Chapter id="c6" number="06" eyebrow="Сценарий № 3" title="Отдельная корзина ресторана переживает ошибку оплаты." tone="ink">
         <div className="recovery-layout">
           <div className="recovery-flow"><span><Utensils />Меню «Чо-Чо»</span><ArrowRight /><span><CreditCard />Оплата</span><ArrowRight /><span className="error-node">Ошибка</span><ArrowRight /><span><RotateCcw />Повтор</span></div>
-          <div className="recovery-copy"><h3>Пользователь не собирает заказ заново</h3><p>Сохраняются позиции, ресторан, способ получения и выбранное время.</p><ul className="check-list"><li><Check /> Корзины разных ресторанов не смешиваются.</li><li><Check /> Недоступная позиция видна до оформления.</li><li><Check /> После ошибки есть понятный путь восстановления.</li></ul><DemoLink hash="payment-error?restaurant=cho&service=delivery&address=selected&time=1930">Посмотреть восстановление</DemoLink></div>
+          <div className="recovery-copy"><h3>Пользователь не собирает заказ заново</h3><p>Сохраняются позиции, ресторан, способ получения и выбранное время.</p><ul className="check-list"><li><Check /> Корзины разных ресторанов не смешиваются.</li><li><Check /> Недоступная позиция видна до оформления.</li><li><Check /> После ошибки есть понятный путь восстановления.</li></ul><DemoLink hash="menu?restaurant=cho">Собрать заказ и проверить</DemoLink></div>
         </div>
       </Chapter>
 

@@ -23,14 +23,14 @@ button { border: 0; cursor: pointer; }
 img { display: block; max-width: 100%; }
 a { color: inherit; }
 
-.desktop-stage { min-height: 100vh; display: grid; grid-template-columns: minmax(420px, 1fr) 430px; gap: clamp(40px, 5vw, 84px); align-items: start; padding: 48px max(32px, 5vw); background: var(--acid); }
-.stage-copy { position: sticky; top: 48px; justify-self: end; width: min(650px, 100%); padding-top: 7vh; }
+.desktop-stage { height: 100dvh; display: grid; grid-template-columns: minmax(420px, 1fr) 430px; gap: clamp(40px, 5vw, 84px); align-items: center; padding: 36px max(32px, 5vw); overflow: hidden; background: var(--acid); }
+.stage-copy { justify-self: end; width: min(650px, 100%); }
 .stage-copy > span { display: inline-block; padding: 8px 12px; border: 1px solid var(--ink); border-radius: 99px; text-transform: uppercase; letter-spacing: .08em; font-size: 11px; font-weight: 800; }
 .stage-copy h2 { max-width: 100%; margin: 24px 0 18px; font: 700 clamp(46px, 5vw, 76px)/.88 'Unbounded', sans-serif; letter-spacing: -.06em; overflow-wrap: anywhere; }
 .stage-copy p { max-width: 470px; margin: 0; font-size: clamp(17px, 2vw, 25px); line-height: 1.35; }
 .stage-copy a { display: inline-flex; gap: 9px; align-items: center; margin-top: 32px; padding-bottom: 5px; border-bottom: 2px solid; font-weight: 800; text-decoration: none; }
-.phone-frame { position: relative; width: 430px; min-height: calc(100vh - 96px); overflow: clip; background: var(--paper); border: 10px solid #171713; border-radius: 36px; box-shadow: 0 30px 80px rgba(31, 34, 20, .26); }
-.screen { min-height: calc(100vh - 116px); padding-bottom: calc(90px + env(safe-area-inset-bottom)); background: var(--paper); overflow: clip; }
+.phone-frame { position: relative; display: flex; flex-direction: column; width: 430px; height: min(844px, calc(100dvh - 72px)); overflow: hidden; background: var(--paper); border: 10px solid #171713; border-radius: 36px; box-shadow: 0 30px 80px rgba(31, 34, 20, .26); }
+.screen { flex: 1 1 auto; min-height: 0; padding-bottom: calc(24px + env(safe-area-inset-bottom)); background: var(--paper); overflow-y: auto; overscroll-behavior: contain; }
 .kicker { display: block; color: #78766f; font-size: 10px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
 .section-block { padding: 26px 18px 4px; }
 .last-section { padding-bottom: 28px; }
@@ -75,7 +75,7 @@ a { color: inherit; }
 .history-teaser strong { font-size: 13px; }
 .history-teaser span { margin-top: 3px; color: var(--muted); font-size: 10px; }
 
-.bottom-nav { position: sticky; z-index: 10; bottom: 0; display: grid; grid-template-columns: repeat(5, 1fr); padding: 8px 6px calc(7px + env(safe-area-inset-bottom)); border-top: 1px solid rgba(0,0,0,.08); background: rgba(244,241,232,.96); backdrop-filter: blur(18px); }
+.bottom-nav { position: relative; flex: 0 0 auto; z-index: 10; display: grid; grid-template-columns: repeat(5, 1fr); padding: 8px 6px calc(7px + env(safe-area-inset-bottom)); border-top: 1px solid rgba(0,0,0,.08); background: rgba(244,241,232,.96); backdrop-filter: blur(18px); }
 .bottom-nav button { display: flex; align-items: center; flex-direction: column; gap: 4px; padding: 4px 0; background: transparent; color: #77746b; font-size: 8px; font-weight: 700; }
 .bottom-nav button.active { color: #111; }
 .bottom-nav button.active::before { position: absolute; width: 32px; height: 3px; border-radius: 99px; background: var(--acid); content: ''; }
@@ -362,11 +362,10 @@ a { color: inherit; }
 
 @media (max-width: 850px) {
   html, body { background: var(--paper); }
-  .desktop-stage { display: block; min-height: 100vh; padding: 0; background: var(--paper); }
+  .desktop-stage { display: block; height: 100dvh; padding: 0; background: var(--paper); }
   .stage-copy { display: none; }
-  .phone-frame { width: 100%; min-height: 100vh; border: 0; border-radius: 0; box-shadow: none; }
-  .screen { min-height: calc(100vh - 62px); }
-  .result-screen { min-height: 100vh; }
+  .phone-frame { width: 100%; height: 100dvh; border: 0; border-radius: 0; box-shadow: none; }
+  .screen, .result-screen { min-height: 0; }
 }
 
 @media (max-width: 374px) {

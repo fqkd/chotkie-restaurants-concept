@@ -100,6 +100,16 @@ type OrderRecord = {
   time: string
   lines: CartLine[]
   total: number
+  payment?: string
+}
+
+type PendingOrder = { id: string; restaurantId: RestaurantId; addressId: string; time: string; payment: string }
+
+function beginDemoOrder(restaurantId: RestaurantId, addressId: string, time: string, payment: string) {
+  const pending: PendingOrder = { id: crypto.randomUUID(), restaurantId, addressId, time, payment }
+  sessionStorage.setItem('chotkie-pending-order', JSON.stringify(pending))
+  sessionStorage.removeItem('chotkie-payment-error')
+  go(`order-success?restaurant=${restaurantId}&service=delivery&address=${addressId}&time=${time}&id=${pending.id}`)
 }
 
 function readOrders(): OrderRecord[] {
@@ -598,9 +608,9 @@ function CartPage({ restaurant, lines, setQuantity }: { restaurant: Restaurant; 
 }
 
 function CheckoutPage({ restaurant, lines, addressId, time, edit }: { restaurant: Restaurant; lines: Carts[RestaurantId]; addressId?: string | null; time?: string | null; edit?: string | null }) {
-  const [name, setName] = useState(() => readProfile().name)
-  const [phone, setPhone] = useState(() => readProfile().phone)
-  const [payment, setPayment] = useState('Банковская карта')
+  const [name, setName] = useState(() => sessionStorage.getItem(`chotkie-checkout-name-${restaurant.id}`) || readProfile().name)
+  const [phone, setPhone] = useState(() => sessionStorage.getItem(`chotkie-checkout-phone-${restaurant.id}`) || readProfile().phone)
+  const [payment, setPayment] = useState(() => sessionStorage.getItem(`chotkie-payment-${restaurant.id}`) || 'Банковская карта')
   const [now, setNow] = useState(() => new Date())
   useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 60_000); return () => window.clearInterval(timer) }, [])
   const selectedAddressId = addressId === 'selected' ? 'krasnaya' : addressId
@@ -620,25 +630,31 @@ function CheckoutPage({ restaurant, lines, addressId, time, edit }: { restaurant
       <button className={`checkout-row ${selectedSlot ? 'chosen' : ''}`} onClick={() => go(`${route}&edit=time`)}><div><small>Интервал</small><strong>{selectedSlot?.label || 'Выбрать время'}</strong></div>{selectedSlot ? <Check /> : <ChevronRight />}</button>
       {edit === 'time' && <div className="choice-sheet" role="dialog" aria-label="Выбор времени"><b>Доступные интервалы</b>{slots.map((slot) => <button key={slot.id} onClick={() => go(`checkout?restaurant=${restaurant.id}${address ? `&address=${selectedAddressId}` : ''}&time=${slot.id}`)}>{slot.label}{selectedSlot?.id === slot.id && <Check />}</button>)}</div>}
       <button className="checkout-row" onClick={() => go('loyalty')}><div><small>ЧОткая карта</small><strong>Посмотреть условия программы</strong></div><ChevronRight /></button>
-      <div className="payment-card"><CreditCard /><div><small>Способ оплаты</small><select value={payment} onChange={(event) => setPayment(event.target.value)}><option>Банковская карта</option><option>При получении</option></select></div><Check /></div>
+      <div className="payment-card"><CreditCard /><div><small>Способ оплаты</small><select value={payment} onChange={(event) => { setPayment(event.target.value); sessionStorage.setItem(`chotkie-payment-${restaurant.id}`, event.target.value) }}><option>Банковская карта</option><option>При получении</option></select></div><Check /></div>
       <section className="checkout-lines"><h2>Состав заказа</h2>{lines.map((line) => <div key={`${line.id}:${line.modifier}`}><DishArt dish={line} compact /><span><b>{line.name}</b><small>{line.modifier || 'Стандартная подача'} · {line.quantity} × {formatMoney(line.price)}</small></span><strong>{formatMoney(line.price * line.quantity)}</strong></div>)}</section>
-      <section className="checkout-contacts"><h2>Контакты</h2><label className="field"><span>Имя</span><input value={name} onChange={(event) => setName(event.target.value)} /></label><label className="field"><span>Телефон</span><input inputMode="tel" value={phone} onChange={(event) => setPhone(event.target.value)} /></label></section>
+      <section className="checkout-contacts"><h2>Контакты</h2><label className="field"><span>Имя</span><input value={name} onChange={(event) => { setName(event.target.value); sessionStorage.setItem(`chotkie-checkout-name-${restaurant.id}`, event.target.value) }} /></label><label className="field"><span>Телефон</span><input inputMode="tel" value={phone} onChange={(event) => { setPhone(event.target.value); sessionStorage.setItem(`chotkie-checkout-phone-${restaurant.id}`, event.target.value) }} /></label></section>
       <div className="order-total"><span>К оплате</span><strong>{formatMoney(total)}</strong></div>
-      <button className="sticky-primary" disabled={!ready} onClick={() => go(`payment-error?restaurant=${restaurant.id}&service=delivery&address=${selectedAddressId}&time=${selectedSlot?.id}`)}>{ready ? 'Перейти к оплате' : 'Заполните адрес, время и контакты'}</button>
+      <button className="sticky-primary" disabled={!ready} onClick={() => {
+        if (!selectedAddressId || !selectedSlot) return
+        if (payment === 'При получении') beginDemoOrder(restaurant.id, selectedAddressId, selectedSlot.id, payment)
+        else {
+          sessionStorage.setItem('chotkie-payment-error', JSON.stringify({ restaurantId: restaurant.id, addressId: selectedAddressId, time: selectedSlot.id }))
+          go(`payment-error?restaurant=${restaurant.id}&service=delivery&address=${selectedAddressId}&time=${selectedSlot.id}`)
+        }
+      }}>{ready ? payment === 'При получении' ? 'Подтвердить заказ' : 'Перейти к оплате' : 'Заполните адрес, время и контакты'}</button>
     </Screen>
   )
 }
 
 function PaymentErrorPage({ restaurant, total, time, addressId }: { restaurant: Restaurant; total: number; time?: string | null; addressId?: string | null }) {
-  const displayTotal = total || 1880
   return (
     <Screen className="result-screen error-result">
       <div className="error-mark"><X size={34} /></div>
       <span className="kicker">Платёж отклонён</span>
       <h1>Оплата не прошла</h1>
       <p>Корзина, ресторан, доставка и выбранное время сохранены.</p>
-      <div className="restore-card"><RotateCcw /><div><strong>Можно продолжить без повтора</strong><span>{restaurant.name} · {deliveryAddress(addressId) || 'адрес не выбран'} · {orderSlotLabel(time) || 'время не выбрано'} · {formatMoney(displayTotal)}</span></div></div>
-      <button className="primary-button" onClick={() => go(`order-success?restaurant=${restaurant.id}&service=delivery&address=${addressId || ''}&time=${time || ''}&id=${crypto.randomUUID()}`)}>Повторить оплату</button>
+      <div className="restore-card"><RotateCcw /><div><strong>Можно продолжить без повтора</strong><span>{restaurant.name} · {deliveryAddress(addressId) || 'адрес не выбран'} · {orderSlotLabel(time) || 'время не выбрано'} · {formatMoney(total)}</span></div></div>
+      <button className="primary-button" onClick={() => { if (addressId && time) beginDemoOrder(restaurant.id, addressId, time, 'Банковская карта') }}>Повторить оплату</button>
       <button className="secondary-button" onClick={() => go(`cart?restaurant=${restaurant.id}`)}>Вернуться в корзину</button>
     </Screen>
   )
@@ -649,14 +665,18 @@ function OrderSuccessPage({ restaurant, order, clearCart }: { restaurant: Restau
   return (
     <Screen className="result-screen order-result">
       <div className="success-mark"><Check /></div>
-      <span className="kicker">Оплата принята</span>
-      <h1>Заказ подтверждён</h1>
+      <span className="kicker">Демонстрационный заказ</span>
+      <h1>Заказ сохранён</h1>
       <p>Заказ сохранён в истории этого браузера.</p>
-      <div className="receipt"><ReceiptText /><div><small>{restaurant.name}</small><strong>{formatMoney(order.total)}</strong><span>Доставка · {deliveryAddress(order.addressId)} · {orderSlotLabel(order.time)}</span></div></div>
+      <div className="receipt"><ReceiptText /><div><small>{restaurant.name}</small><strong>{formatMoney(order.total)}</strong><span>Доставка · {deliveryAddress(order.addressId)} · {orderSlotLabel(order.time)} · {order.payment || 'Оплата не указана'}</span></div></div>
       <button className="primary-button" onClick={() => { clearCart(); go('home') }}>На главную</button>
       <button className="secondary-button" onClick={() => go('history')}>История действий</button>
     </Screen>
   )
+}
+
+function UnavailableOrderPage({ restaurant, reason }: { restaurant: Restaurant; reason: string }) {
+  return <Screen className="result-screen"><div className="empty-state"><ShoppingBag /><h1>{reason}</h1><p>Выберите блюда, чтобы продолжить заказ.</p><button className="primary-button" onClick={() => go(`menu?restaurant=${restaurant.id}`)}>Открыть меню</button></div></Screen>
 }
 
 function LoyaltyPage() {
@@ -737,7 +757,7 @@ export function App() {
   useEffect(() => localStorage.setItem('chotkie-demo-orders', JSON.stringify(orders)), [orders])
   useEffect(() => {
     window.scrollTo({ top: 0 })
-    document.querySelector('.phone-frame')?.scrollTo({ top: 0 })
+    document.querySelector('.phone-frame > .screen')?.scrollTo({ top: 0 })
   }, [location.route, location.params.toString()])
 
   const restaurant = useMemo(() => findRestaurant(location.params.get('restaurant') || location.params.get('id')), [location])
@@ -749,17 +769,12 @@ export function App() {
     const addressId = location.params.get('address')
     const time = location.params.get('time')
     const lines = carts[restaurant.id]
-    if (!id || !deliveryAddress(addressId) || !orderSlotLabel(time) || !lines.length) return
-    setOrders((current) => current.some((order) => order.id === id) ? current : [{ id, restaurantId: restaurant.id, createdAt: new Date().toISOString(), addressId: addressId!, time: time!, lines, total: cartTotal(lines) }, ...current])
+    let pending: PendingOrder | null = null
+    try { pending = JSON.parse(sessionStorage.getItem('chotkie-pending-order') || 'null') } catch { /* invalid pending data cannot confirm an order */ }
+    if (!id || pending?.id !== id || pending.restaurantId !== restaurant.id || pending.addressId !== addressId || pending.time !== time || !deliveryAddress(addressId) || !orderSlotLabel(time) || !lines.length) return
+    setOrders((current) => current.some((order) => order.id === id) ? current : [{ id, restaurantId: restaurant.id, createdAt: new Date().toISOString(), addressId: addressId!, time: time!, lines, total: cartTotal(lines), payment: pending.payment }, ...current])
+    sessionStorage.removeItem('chotkie-pending-order')
   }, [location, carts, restaurant.id])
-
-  useEffect(() => {
-    if (location.route !== 'payment-error' || carts[restaurant.id].length > 0) return
-    const available = dishes.filter((item) => item.restaurantId === restaurant.id && item.available)
-    let seeded = carts
-    available.forEach((item) => { seeded = addLine(seeded, item) })
-    setCarts(seeded)
-  }, [carts, location, restaurant.id])
 
   function addToCart(nextDish: Dish, modifier: string) {
     setCarts((current) => addLine(current, nextDish, modifier))
@@ -780,6 +795,12 @@ export function App() {
     go(`cart?restaurant=${order.restaurantId}&repeat=1`)
   }
 
+  let paymentErrorActive = false
+  try {
+    const pending = JSON.parse(sessionStorage.getItem('chotkie-payment-error') || 'null')
+    paymentErrorActive = pending?.restaurantId === restaurant.id && pending?.addressId === location.params.get('address') && pending?.time === location.params.get('time')
+  } catch { /* invalid stored data cannot open payment recovery */ }
+
   let page: ReactNode
   switch (location.route) {
     case 'discover': page = <DiscoverPage mood={location.params.get('mood')} />; break
@@ -792,8 +813,8 @@ export function App() {
     case 'menu': page = <MenuPage restaurant={restaurant} mode={location.params.get('mode')} category={location.params.get('category')} />; break
     case 'dish': page = <DishPage dish={dish} addToCart={addToCart} />; break
     case 'cart': page = <CartPage restaurant={restaurant} lines={carts[restaurant.id]} setQuantity={(id, delta, modifier) => setCarts((current) => updateLine(current, restaurant.id, id, delta, modifier))} />; break
-    case 'checkout': page = <CheckoutPage restaurant={restaurant} lines={carts[restaurant.id]} addressId={location.params.get('address')} time={location.params.get('time')} edit={location.params.get('edit')} />; break
-    case 'payment-error': page = <PaymentErrorPage restaurant={restaurant} total={cartTotal(carts[restaurant.id])} time={location.params.get('time')} addressId={location.params.get('address')} />; break
+    case 'checkout': page = carts[restaurant.id].length ? <CheckoutPage restaurant={restaurant} lines={carts[restaurant.id]} addressId={location.params.get('address')} time={location.params.get('time')} edit={location.params.get('edit')} /> : <UnavailableOrderPage restaurant={restaurant} reason="Корзина пока пуста" />; break
+    case 'payment-error': page = carts[restaurant.id].length && paymentErrorActive ? <PaymentErrorPage restaurant={restaurant} total={cartTotal(carts[restaurant.id])} time={location.params.get('time')} addressId={location.params.get('address')} /> : <UnavailableOrderPage restaurant={restaurant} reason="Оплата не начиналась" />; break
     case 'order-success': page = <OrderSuccessPage restaurant={restaurant} order={orders.find((order) => order.id === location.params.get('id'))} clearCart={() => setCarts((current) => ({ ...current, [restaurant.id]: [] }))} />; break
     case 'loyalty': page = <LoyaltyPage />; break
     case 'history': page = <HistoryPage orders={orders} repeatOrder={repeatOrder} />; break
