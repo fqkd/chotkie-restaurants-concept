@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -276,6 +276,7 @@ function HomePage() {
 function DiscoverPage({ mood }: { mood?: string | null }) {
   const [loading, setLoading] = useState(true)
   const [selectionValid, setSelectionValid] = useState(true)
+  const firstSelection = useRef(true)
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<RestaurantId>(
     mood && ({ 'Свидание': 'besame', 'С семьёй': 'ptichka', 'Шумный вечер': 'cho', 'Показать город': 'katenka' } as Record<string, RestaurantId>)[mood]
       ? ({ 'Свидание': 'besame', 'С семьёй': 'ptichka', 'Шумный вечер': 'cho', 'Показать город': 'katenka' } as Record<string, RestaurantId>)[mood]
@@ -304,6 +305,10 @@ function DiscoverPage({ mood }: { mood?: string | null }) {
     if (mood && selections[mood]) setSelectedRestaurantId(selections[mood])
   }, [mood])
   const selectedRestaurant = visibleRestaurants.find((item) => item.id === selectedRestaurantId)
+  useEffect(() => {
+    if (firstSelection.current) { firstSelection.current = false; return }
+    document.querySelector('.restaurant-list-card.selected')?.scrollIntoView({ block: 'nearest' })
+  }, [selectedRestaurantId])
 
   const FilterRow = ({ label, items }: { label: string; items: string[] }) => (
     <div className="filter-group">
