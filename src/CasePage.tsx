@@ -80,7 +80,7 @@ export function CasePage() {
 
       <Chapter id="c3" number="03" eyebrow="Основная идея" title="Главный экран начинает с вопроса «куда пойти сегодня?»" tone="acid">
         <div className="idea-layout">
-          <div className="idea-copy"><p>Редакционная витрина соединяет атмосферу, кухню, повод и события. Интерактивная карта показывает четыре подтверждённых адреса и синхронизирована со списком ресторанов.</p><ul className="check-list"><li><Check /> Поиск ресторана по названию, адресу или району.</li><li><Check /> Событие ведёт прямо к выбору стола.</li><li><Check /> Заказы и корзины не смешиваются между заведениями.</li><li><Check /> Карта лояльности доступна из любой точки пути.</li></ul><DemoLink hash="discover?mood=Свидание">Открыть карту и подборку</DemoLink></div>
+          <div className="idea-copy"><p>Редакционная витрина соединяет атмосферу, кухню, повод и события. Интерактивная карта показывает четыре подтверждённых адреса и синхронизирована со списком ресторанов.</p><ul className="check-list"><li><Check /> Поиск ресторана по названию, адресу или району.</li><li><Check /> Событие ведёт прямо к выбору стола.</li><li><Check /> Заказы и корзины не смешиваются между заведениями.</li><li><Check /> Правила лояльности собраны в отдельном разделе.</li></ul><DemoLink hash="discover?mood=Свидание">Открыть карту и подборку</DemoLink></div>
           <Phone className="home-mock"><div className="mock-head"><small>Краснодар · вечер</small><strong>Куда пойдём?</strong></div><img src={asset('assets/cho-interior.webp')} alt="" /><div className="mock-overlay"><small>Сценарий события</small><strong>Сначала событие.<br />Потом — столик.</strong></div><div className="mock-tabs"><span>Свидание</span><span>С семьёй</span><span>Шумно</span></div></Phone>
         </div>
       </Chapter>
@@ -119,7 +119,7 @@ export function CasePage() {
         <div className="pilot-layout">
           <div className="pilot-scope"><span>01</span><h3>Бронирование</h3><p>Выбор по поводу → ресторан → запрос столика.</p></div>
           <div className="pilot-scope"><span>02</span><h3>Афиша</h3><p>Событие → выбор времени → запрос.</p></div>
-          <div className="pilot-scope"><span>03</span><h3>Повтор заказа</h3><p>Проверка доступности → корзина → восстановление.</p></div>
+          <div className="pilot-scope"><span>03</span><h3>Повтор заказа</h3><p>Сверка с демо-каталогом → корзина → восстановление.</p></div>
           <div className="pilot-metrics"><h3>Что сравнивать</h3><ul><li>время и количество шагов;</li><li>конверсию из начатого действия в подтверждённое;</li><li>долю завершённых бронирований;</li><li>переход из события к брони;</li><li>долю восстановленных корзин;</li><li>использование карты лояльности.</li></ul><small>Без целевых процентов: значения зависят от текущей аналитики и интеграций.</small></div>
         </div>
       </Chapter>

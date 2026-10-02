@@ -510,6 +510,11 @@ function BookingDetailsPage({ restaurant, booking, setBooking, saveBooking, sour
   )
 }
 
+function canEditBooking(record: BookingRecord) {
+  const future = new Date(`${record.dateISO}T${record.time}:00+03:00`).getTime() > Date.now()
+  return future && (!record.eventId || bookingISO(eventDate(record.eventId), record.eventId) === record.dateISO)
+}
+
 function BookingSuccessPage({ record, onEdit }: { record: BookingRecord | undefined; onEdit: (record: BookingRecord) => void }) {
   if (!record) return <Screen className="result-screen"><div className="empty-state"><CircleAlert /><h1>Заявка не найдена</h1><p>Создайте запрос из карточки ресторана.</p><button className="primary-button" onClick={() => go('discover')}>Выбрать ресторан</button></div></Screen>
   const restaurant = findRestaurant(record.restaurantId)
@@ -527,7 +532,7 @@ function BookingSuccessPage({ record, onEdit }: { record: BookingRecord | undefi
       </div>
       <p>Контакт: {record.name}, {record.phone}{record.note && <> · {record.note}</>}<br />№ {record.id.slice(0, 8).toUpperCase()}</p>
       <button className="primary-button" onClick={() => go('history')}>Открыть историю</button>
-      <button className="secondary-button" onClick={() => onEdit(record)}>Изменить заявку</button>
+      <button className="secondary-button" onClick={() => onEdit(record)}>{canEditBooking(record) ? 'Изменить заявку' : 'Создать новую заявку'}</button>
     </Screen>
   )
 }
@@ -842,7 +847,8 @@ export function App() {
     go(`booking-success?id=${record.id}&restaurant=${record.restaurantId}`)
   }
   function editBooking(record: BookingRecord) {
-    go(`booking?restaurant=${record.restaurantId}&edit=${record.id}${record.eventId ? `&source=event&event=${record.eventId}` : ''}`)
+    if (canEditBooking(record)) go(`booking?restaurant=${record.restaurantId}&edit=${record.id}${record.eventId ? `&source=event&event=${record.eventId}` : ''}`)
+    else go(`booking?restaurant=${record.restaurantId}`)
   }
 
   function repeatOrder(order: OrderRecord) {
@@ -876,7 +882,7 @@ export function App() {
     case 'cart': page = <CartPage restaurant={restaurant} lines={carts[restaurant.id]} setQuantity={(id, delta, modifier) => setCarts((current) => updateLine(current, restaurant.id, id, delta, modifier))} />; break
     case 'checkout': page = carts[restaurant.id].length ? <CheckoutPage restaurant={restaurant} lines={carts[restaurant.id]} addressId={location.params.get('address')} time={location.params.get('time')} edit={location.params.get('edit')} /> : <UnavailableOrderPage restaurant={restaurant} reason="Корзина пока пуста" />; break
     case 'payment-error': page = carts[restaurant.id].length && paymentErrorActive ? <PaymentErrorPage restaurant={restaurant} total={cartTotal(carts[restaurant.id])} time={location.params.get('time')} addressId={location.params.get('address')} /> : <UnavailableOrderPage restaurant={restaurant} reason="Оплата не начиналась" />; break
-    case 'order-success': page = <OrderSuccessPage restaurant={restaurant} order={orders.find((order) => order.id === location.params.get('id'))} clearCart={() => setCarts((current) => ({ ...current, [restaurant.id]: [] }))} />; break
+    case 'order-success': page = <OrderSuccessPage restaurant={restaurant} order={orders.find((order) => order.id === location.params.get('id') && order.restaurantId === restaurant.id)} clearCart={() => setCarts((current) => ({ ...current, [restaurant.id]: [] }))} />; break
     case 'loyalty': page = <LoyaltyPage />; break
     case 'history': page = <HistoryPage orders={orders} bookings={bookings} repeatOrder={repeatOrder} />; break
     case 'profile': page = <ProfilePage />; break

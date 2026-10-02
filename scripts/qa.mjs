@@ -289,6 +289,8 @@ await scenario('прямые ссылки и оплата при получен�
   if (!await page.locator('.receipt').getByText(/При получении/).count()) throw new Error('Способ оплаты потерян после перезагрузки')
   const orders = await page.evaluate(() => JSON.parse(localStorage.getItem('chotkie-demo-orders') || '[]'))
   if (orders.length !== 1) throw new Error('Заказ при получении не сохранён ровно один раз')
+  await page.goto(`${base}/#order-success?restaurant=ptichka&id=${orders[0].id}`, { waitUntil: 'networkidle' })
+  await page.getByRole('heading', { name: 'Заказ не найден' }).waitFor()
 })
 
 await scenario('отдельные корзины ресторанов', async (page) => {
