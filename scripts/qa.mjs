@@ -178,7 +178,7 @@ await scenario('карта → поиск → пустое состояние �
   await map.getByText('Расстояния рассчитаны от вашего положения').waitFor()
 })
 
-await scenario('повод → ресторан → бронирование → подтверждение', async (page) => {
+await scenario('повод → ресторан → сохранённый запрос столика', async (page) => {
   await page.goto(`${base}/#home`, { waitUntil: 'networkidle' })
   await page.getByRole('button', { name: /Свидание/ }).click()
   await page.waitForTimeout(650)
@@ -191,8 +191,24 @@ await scenario('повод → ресторан → бронирование →
   await page.getByRole('button', { name: /Продолжить/ }).click()
   await page.getByLabel('Имя').fill('Мария')
   await page.getByLabel('Телефон').fill('+7 900 000-00-00')
-  await page.getByRole('button', { name: 'Отправить запрос' }).click()
-  await page.getByRole('heading', { name: 'Параметры сохранены' }).waitFor()
+  await page.getByRole('button', { name: 'Сохранить демо-заявку' }).click()
+  await page.getByRole('heading', { name: 'Параметры записаны' }).waitFor()
+  await page.getByRole('button', { name: 'Открыть историю' }).click()
+  await page.getByRole('heading', { name: 'История и быстрый возврат' }).waitFor()
+  await page.locator('.past-order').filter({ hasText: 'Демо-заявка в браузере' }).waitFor()
+  if (await page.locator('.past-order').filter({ hasText: 'Демо-заявка в браузере' }).count() !== 1) throw new Error('Запрос столика не сохранён в истории')
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.locator('.past-order').filter({ hasText: 'Демо-заявка в браузере' }).getByRole('button', { name: 'Подробнее' }).click()
+  await page.getByRole('button', { name: 'Изменить заявку' }).click()
+  await page.getByRole('heading', { name: 'Когда вас ждать?' }).waitFor()
+  await page.getByRole('button', { name: '19:30' }).click()
+  await page.getByRole('button', { name: /Продолжить/ }).click()
+  await page.getByRole('button', { name: 'Сохранить демо-заявку' }).click()
+  await page.getByRole('button', { name: 'Открыть историю' }).click()
+  await page.getByRole('heading', { name: 'История и быстрый возврат' }).waitFor()
+  if (await page.locator('.past-order').filter({ hasText: 'Демо-заявка в браузере' }).count() !== 1) throw new Error('Редактирование создало дубль запроса')
+  await page.goto(`${base}/#booking-success?restaurant=besame`, { waitUntil: 'networkidle' })
+  await page.getByRole('heading', { name: 'Заявка не найдена' }).waitFor()
 })
 
 await scenario('афиша → событие → бронирование', async (page) => {

@@ -85,17 +85,17 @@ export function CasePage() {
         </div>
       </Chapter>
 
-      <Chapter id="c4" number="04" eyebrow="Сценарий № 1" title="Повод → ресторан → дата → время → гости → подтверждение.">
+      <Chapter id="c4" number="04" eyebrow="Сценарий № 1" title="Повод → ресторан → дата → время → запрос столика.">
         <div className="scenario-layout">
-          <div className="scenario-copy"><div className="scenario-index">5 экранов</div><p>Пользователь выбирает настроение, видит различия между ресторанами и бронирует без возврата к поиску контактов.</p><div className="route-line"><span>Свидание</span><ArrowRight /><span>Bésame mucho</span><ArrowRight /><span>Столик</span></div><div className="detail-list"><span><CalendarDays />Дата и время</span><span><UsersRound />Количество гостей</span><span><Check />Запрос отправлен</span></div><DemoLink hash="booking?restaurant=besame">Посмотреть бронирование</DemoLink></div>
-          <div className="phone-pair"><Phone><div className="phone-photo"><img src={asset('assets/besame.webp')} alt="" /><span>Сиеста и любовь</span><strong>Bésame mucho</strong></div><div className="phone-action">Забронировать для свидания</div></Phone><Phone className="phone-back"><div className="calendar-mock"><small>Bésame mucho</small><h3>Когда вас ждать?</h3><div><b>Сегодня</b><b>Завтра</b><b>+2 дня</b></div><h3>Свободные интервалы</h3><div className="times"><span>19:00</span><span className="active">19:30</span><span>20:00</span></div></div></Phone></div>
+          <div className="scenario-copy"><div className="scenario-index">Демо-сценарий</div><p>Пользователь выбирает настроение и сохраняет запрос столика с датой, гостями и контактом. Прототип не отправляет его ресторану.</p><div className="route-line"><span>Свидание</span><ArrowRight /><span>Bésame mucho</span><ArrowRight /><span>Столик</span></div><div className="detail-list"><span><CalendarDays />Дата и время</span><span><UsersRound />Количество гостей</span><span><Check />Запрос в истории</span></div><DemoLink hash="booking?restaurant=besame">Посмотреть бронирование</DemoLink></div>
+          <div className="phone-pair"><Phone><div className="phone-photo"><img src={asset('assets/besame.webp')} alt="" /><span>Сиеста и любовь</span><strong>Bésame mucho</strong></div><div className="phone-action">Забронировать для свидания</div></Phone><Phone className="phone-back"><div className="calendar-mock"><small>Bésame mucho</small><h3>Когда вас ждать?</h3><div><b>Сегодня</b><b>Завтра</b><b>Следующий день</b></div><h3>Желаемое время</h3><div className="times"><span>19:00</span><span className="active">19:30</span><span>20:00</span></div></div></Phone></div>
         </div>
       </Chapter>
 
       <Chapter id="c5" number="05" eyebrow="Сценарий № 2" title="Из афиши — к выбору столика на событие." tone="red">
         <div className="event-case">
           <div className="event-poster"><img src={asset('assets/cho-interior.webp')} alt="Интерьер «Чо-Чо»" /><span>Сценарное событие</span><h3>Живая музыка<br />и ужин</h3></div>
-          <div className="event-case-copy"><Ticket size={32} /><h3>Контекст события сохраняется</h3><p>После перехода к бронированию пользователь понимает, ради какого события выбирает время. Сценарий можно измерить отдельно.</p><div className="metric-chips"><span>Переход из события</span><span>Начало брони</span><span>Подтверждение</span></div><DemoLink hash="event?id=live-night">Открыть событие</DemoLink></div>
+          <div className="event-case-copy"><Ticket size={32} /><h3>Контекст события сохраняется</h3><p>После перехода к бронированию пользователь понимает, ради какого события выбирает время. Заявка сохраняется в истории прототипа.</p><div className="metric-chips"><span>Переход из события</span><span>Начало брони</span><span>Сохранение запроса</span></div><DemoLink hash="event?id=live-night">Открыть событие</DemoLink></div>
         </div>
       </Chapter>
 
@@ -117,8 +117,8 @@ export function CasePage() {
 
       <Chapter id="c8" number="08" eyebrow="Предлагаемый пилот" title="Проверить три перехода — и сравнить с текущим публичным путём." tone="acid">
         <div className="pilot-layout">
-          <div className="pilot-scope"><span>01</span><h3>Бронирование</h3><p>Выбор по поводу → ресторан → подтверждение.</p></div>
-          <div className="pilot-scope"><span>02</span><h3>Афиша</h3><p>Событие → выбор времени → подтверждение.</p></div>
+          <div className="pilot-scope"><span>01</span><h3>Бронирование</h3><p>Выбор по поводу → ресторан → запрос столика.</p></div>
+          <div className="pilot-scope"><span>02</span><h3>Афиша</h3><p>Событие → выбор времени → запрос.</p></div>
           <div className="pilot-scope"><span>03</span><h3>Повтор заказа</h3><p>Проверка доступности → корзина → восстановление.</p></div>
           <div className="pilot-metrics"><h3>Что сравнивать</h3><ul><li>время и количество шагов;</li><li>конверсию из начатого действия в подтверждённое;</li><li>долю завершённых бронирований;</li><li>переход из события к брони;</li><li>долю восстановленных корзин;</li><li>использование карты лояльности.</li></ul><small>Без целевых процентов: значения зависят от текущей аналитики и интеграций.</small></div>
         </div>

@@ -128,6 +128,27 @@ type BookingState = {
   guests: number
   name: string
   phone: string
+  note: string
+}
+type BookingRecord = BookingState & { id: string; dateISO: string; eventId: string | null; createdAt: string }
+
+function readBookings(): BookingRecord[] {
+  try {
+    const value = JSON.parse(localStorage.getItem('chotkie-demo-bookings') || '[]')
+    return Array.isArray(value) ? value : []
+  } catch { return [] }
+}
+
+function bookingISO(date: string, eventId: string | null, now = new Date()) {
+  const offset = eventId ? (eventId === 'brunch' ? brunchOffset(now) : 3) : bookingDates(now).indexOf(date)
+  if (offset < 0) return ''
+  const parts = new Intl.DateTimeFormat('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Europe/Moscow' }).formatToParts(now)
+  const part = (name: string) => Number(parts.find((entry) => entry.type === name)?.value)
+  return new Date(Date.UTC(part('year'), part('month') - 1, part('day') + offset, 12)).toISOString().slice(0, 10)
+}
+
+function bookingFullDate(dateISO: string) {
+  return new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Moscow' }).format(new Date(`${dateISO}T12:00:00Z`))
 }
 
 const initialBooking: BookingState = {
@@ -137,6 +158,7 @@ const initialBooking: BookingState = {
   guests: 2,
   name: '',
   phone: '',
+  note: '',
 }
 
 function Screen({ children, className = '' }: { children: ReactNode; className?: string }) {
@@ -453,11 +475,11 @@ function BookingPage({ restaurant, booking, setBooking, source, eventId }: { res
       </section>
       <section className="booking-block">
         <span className="kicker">02 · время</span>
-        <h2>Свободные интервалы</h2>
+        <h2>Желаемое время</h2>
         <div className="time-grid">
           {times.map((time) => <button key={time} className={booking.time === time ? 'selected' : ''} disabled={!isFutureBooking(booking.date, time, now, source === 'event' ? eventId : null)} onClick={() => setBooking({ ...booking, time })}>{time}</button>)}
         </div>
-        <small className="demo-caption">{source === 'event' ? 'Для события доступно указанное время.' : 'Финальную доступность подтвердит ресторан.'}</small>
+        <small className="demo-caption">{source === 'event' ? 'Время события указано для примера; доступность подтвердит ресторан.' : 'Доступность подтвердит ресторан.'}</small>
       </section>
       <section className="guest-row">
         <div><span className="kicker">03 · компания</span><h2>Количество гостей</h2></div>
@@ -468,8 +490,8 @@ function BookingPage({ restaurant, booking, setBooking, source, eventId }: { res
   )
 }
 
-function BookingDetailsPage({ restaurant, booking, setBooking, source, eventId }: { restaurant: Restaurant; booking: BookingState; setBooking: (next: BookingState) => void; source?: string | null; eventId?: string | null }) {
-  const valid = booking.name.trim().length >= 2 && booking.phone.replace(/\D/g, '').length >= 11
+function BookingDetailsPage({ restaurant, booking, setBooking, saveBooking, source, eventId }: { restaurant: Restaurant; booking: BookingState; setBooking: (next: BookingState) => void; saveBooking: (eventId: string | null) => void; source?: string | null; eventId?: string | null }) {
+  const valid = booking.name.trim().length >= 2 && booking.phone.replace(/\D/g, '').length === 11 && isFutureBooking(booking.date, booking.time, new Date(), source === 'event' ? eventId : null)
   return (
     <Screen className="form-screen">
       <BackHeader title="Детали брони" overline={restaurant.name} />
@@ -478,31 +500,34 @@ function BookingDetailsPage({ restaurant, booking, setBooking, source, eventId }
         <div><Clock3 /><span>{booking.time}</span></div>
         <div><UsersRound /><span>{formatGuests(booking.guests)}</span></div>
       </div>
-      <section className="form-copy"><span className="kicker">Почти готово</span><h1>Кому подтвердить столик?</h1><p>Ресторан использует имя и телефон для подтверждения запроса.</p></section>
+      <section className="form-copy"><span className="kicker">Почти готово</span><h1>Кому ответить по заявке?</h1><p>Заявка сохранится только в этом браузере. Для настоящей брони свяжитесь с рестораном.</p></section>
       <label className="field"><span>Имя</span><input value={booking.name} onChange={(event) => setBooking({ ...booking, name: event.target.value })} /></label>
       <label className="field"><span>Телефон</span><input value={booking.phone} onChange={(event) => setBooking({ ...booking, phone: event.target.value })} inputMode="tel" /></label>
-      <label className="field"><span>Комментарий</span><input placeholder="Например, столик у окна" /></label>
+      <label className="field"><span>Комментарий · необязательно</span><input value={booking.note} onChange={(event) => setBooking({ ...booking, note: event.target.value })} placeholder="Например, столик у окна" /></label>
       {!valid && <div className="safe-note"><CircleAlert size={17} /><span>Укажите имя и телефон, чтобы продолжить.</span></div>}
-      <button className="sticky-primary" disabled={!valid} onClick={() => go(`booking-success?restaurant=${restaurant.id}${source === 'event' ? `&source=event&event=${eventId || 'live-night'}` : ''}`)}>Отправить запрос</button>
+      <button className="sticky-primary" disabled={!valid} onClick={() => saveBooking(source === 'event' ? eventId || 'live-night' : null)}>Сохранить демо-заявку</button>
     </Screen>
   )
 }
 
-function BookingSuccessPage({ restaurant, booking, source, eventId }: { restaurant: Restaurant; booking: BookingState; source?: string | null; eventId?: string | null }) {
+function BookingSuccessPage({ record, onEdit }: { record: BookingRecord | undefined; onEdit: (record: BookingRecord) => void }) {
+  if (!record) return <Screen className="result-screen"><div className="empty-state"><CircleAlert /><h1>Заявка не найдена</h1><p>Создайте запрос из карточки ресторана.</p><button className="primary-button" onClick={() => go('discover')}>Выбрать ресторан</button></div></Screen>
+  const restaurant = findRestaurant(record.restaurantId)
   return (
     <Screen className="result-screen booking-result">
       <div className="success-mark"><Check size={34} /></div>
-      <span className="kicker">Запрос отправлен</span>
-      <h1>Параметры сохранены</h1>
-      <p>Ресторан должен подтвердить столик по указанному телефону.</p>
+      <span className="kicker">Демо-заявка сохранена</span>
+      <h1>Параметры записаны</h1>
+      <p>Ресторану запрос не отправлен. Для настоящей брони свяжитесь с ним напрямую.</p>
       <div className="result-card">
         <RestaurantVisual restaurant={restaurant} compact />
         <div className="result-details">
-          <span><CalendarDays />{booking.date}</span><span><Clock3 />{booking.time}</span><span><UsersRound />{formatGuests(booking.guests)}</span>
+          <span><CalendarDays />{bookingFullDate(record.dateISO)}</span><span><Clock3 />{record.time}</span><span><UsersRound />{formatGuests(record.guests)}</span>
         </div>
       </div>
-      <button className="primary-button" onClick={() => go('home')}>На главную</button>
-      <button className="secondary-button" onClick={() => go(source === 'event' ? `event?id=${eventId || 'live-night'}` : 'events')}>{source === 'event' ? 'Вернуться к событию' : 'Посмотреть афишу'}</button>
+      <p>Контакт: {record.name}, {record.phone}{record.note && <> · {record.note}</>}<br />№ {record.id.slice(0, 8).toUpperCase()}</p>
+      <button className="primary-button" onClick={() => go('history')}>Открыть историю</button>
+      <button className="secondary-button" onClick={() => onEdit(record)}>Изменить заявку</button>
     </Screen>
   )
 }
@@ -716,12 +741,13 @@ function FavoritesPage({ favorites }: { favorites: RestaurantId[] }) {
   return <Screen className="history-screen"><BackHeader title="Избранное" overline="Моё" />{savedRestaurants.length ? <div className="restaurant-list">{savedRestaurants.map((restaurant) => <button className="restaurant-list-card" key={restaurant.id} onClick={() => go(`restaurant?id=${restaurant.id}`)}><RestaurantVisual restaurant={restaurant} compact /><div className="list-meta"><span>Открыть ресторан</span><ChevronRight /></div></button>)}</div> : <div className="empty-state"><Heart /><h1>Пока ничего нет</h1><p>Добавьте ресторан сердцем на его странице.</p><button className="primary-button" onClick={() => go('discover')}>Выбрать ресторан</button></div>}</Screen>
 }
 
-function HistoryPage({ orders, repeatOrder }: { orders: OrderRecord[]; repeatOrder: (order: OrderRecord) => void }) {
+function HistoryPage({ orders, bookings, repeatOrder }: { orders: OrderRecord[]; bookings: BookingRecord[]; repeatOrder: (order: OrderRecord) => void }) {
   return (
     <>
       <Screen className="history-screen">
         <header className="history-header"><span className="kicker">Моё</span><h1>История и быстрый возврат</h1></header>
         <section className="history-section"><h2>Заказы</h2>{orders.length ? orders.map((order) => <div className="past-order" key={order.id}><div className="past-top"><span><strong>{findRestaurant(order.restaurantId).name}</strong><small>{new Intl.DateTimeFormat('ru-RU', { timeZone: 'Europe/Moscow', day: 'numeric', month: 'long' }).format(new Date(order.createdAt))} · доставка</small></span><b>{formatMoney(order.total)}</b></div><p><Check /> {order.lines.map((line) => `${line.quantity} × ${line.name}${line.modifier && line.modifier !== 'Стандартная подача' ? ` (${line.modifier.toLowerCase()})` : ''}`).join(', ')}</p><button className="primary-button" onClick={() => repeatOrder(order)}><RotateCcw /> Повторить заказ</button></div>) : <div className="empty-state"><ReceiptText /><h1>Заказов пока нет</h1><p>Когда оформите заказ, он появится здесь.</p><button className="primary-button" onClick={() => go('discover')}>Выбрать ресторан</button></div>}</section>
+        <section className="history-section"><h2>Запросы столика</h2>{bookings.length ? bookings.map((record) => <div className="past-order" key={record.id}><div className="past-top"><span><strong>{findRestaurant(record.restaurantId).name}</strong><small>Демо-заявка в браузере · ресторану не отправлена</small></span></div><p>{bookingFullDate(record.dateISO)} в {record.time} · {formatGuests(record.guests)}<br />{record.name}, {record.phone}{record.note && <> · {record.note}</>}</p><button className="primary-button" onClick={() => go(`booking-success?id=${record.id}&restaurant=${record.restaurantId}`)}>Подробнее <ArrowRight /></button></div>) : <p>Сохранённых запросов столика пока нет.</p>}</section>
         <section className="history-section last-section"><h2>Попробовать в следующий раз</h2><button className="visit-card" onClick={() => go('restaurant?id=besame')}><img src={asset('assets/besame.webp')} alt="" /><div><small>Рекомендация другого ресторана</small><strong>Bésame mucho</strong><span>Свидание и долгий завтрак</span></div><ChevronRight /></button></section>
       </Screen>
       <BottomNav active="profile" />
@@ -747,6 +773,8 @@ export function App() {
   const [location, setLocation] = useState(() => parseHash(window.location.hash))
   const [carts, setCarts] = useState<Carts>(readCarts)
   const [booking, setBookingState] = useState<BookingState>(() => ({ ...initialBooking, ...readProfile() }))
+  const [bookings, setBookings] = useState<BookingRecord[]>(readBookings)
+  const [activeBookingId, setActiveBookingId] = useState<string | null>(null)
   const [favorites, setFavorites] = useState<RestaurantId[]>(readFavorites)
   const [orders, setOrders] = useState<OrderRecord[]>(readOrders)
 
@@ -760,6 +788,7 @@ export function App() {
   useEffect(() => localStorage.setItem('chotkie-demo-carts', JSON.stringify(carts)), [carts])
   useEffect(() => localStorage.setItem('chotkie-favorites', JSON.stringify(favorites)), [favorites])
   useEffect(() => localStorage.setItem('chotkie-demo-orders', JSON.stringify(orders)), [orders])
+  useEffect(() => localStorage.setItem('chotkie-demo-bookings', JSON.stringify(bookings)), [bookings])
   useEffect(() => {
     window.scrollTo({ top: 0 })
     document.querySelector('.phone-frame > .screen')?.scrollTo({ top: 0 })
@@ -767,6 +796,21 @@ export function App() {
 
   const restaurant = useMemo(() => findRestaurant(location.params.get('restaurant') || location.params.get('id')), [location])
   const dish = useMemo(() => findDish(location.params.get('id')), [location])
+  useEffect(() => {
+    if (location.route !== 'booking') return
+    const id = location.params.get('edit')
+    const record = bookings.find((entry) => entry.id === id && entry.restaurantId === restaurant.id)
+    if (record) {
+      const now = new Date()
+      const date = record.eventId ? eventDate(record.eventId, now) : bookingDates(now).find((option) => bookingISO(option, null, now) === record.dateISO) || bookingDates(now)[0]
+      setActiveBookingId(record.id)
+      setBookingState({ restaurantId: record.restaurantId, date, time: record.time, guests: record.guests, name: record.name, phone: record.phone, note: record.note })
+    } else {
+      setActiveBookingId(null)
+      const eventId = location.params.get('source') === 'event' ? location.params.get('event') || 'live-night' : null
+      setBookingState({ ...initialBooking, ...readProfile(), restaurantId: restaurant.id, date: eventId ? eventDate(eventId) : initialBooking.date, time: eventId === 'brunch' ? '11:00' : initialBooking.time })
+    }
+  }, [location.route, location.params.toString(), restaurant.id])
 
   useEffect(() => {
     if (location.route !== 'order-success') return
@@ -787,6 +831,18 @@ export function App() {
 
   function setBooking(next: BookingState) {
     setBookingState(next)
+  }
+  function saveBooking(eventId: string | null) {
+    const now = new Date()
+    if (!isFutureBooking(booking.date, booking.time, now, eventId) || booking.name.trim().length < 2 || booking.phone.replace(/\D/g, '').length !== 11) return
+    const existing = bookings.find((record) => record.id === activeBookingId)
+    const record: BookingRecord = { ...booking, id: existing?.id ?? crypto.randomUUID(), dateISO: bookingISO(booking.date, eventId, now), eventId, createdAt: existing?.createdAt ?? now.toISOString() }
+    setBookings((current) => [record, ...current.filter((entry) => entry.id !== record.id)])
+    setActiveBookingId(record.id)
+    go(`booking-success?id=${record.id}&restaurant=${record.restaurantId}`)
+  }
+  function editBooking(record: BookingRecord) {
+    go(`booking?restaurant=${record.restaurantId}&edit=${record.id}${record.eventId ? `&source=event&event=${record.eventId}` : ''}`)
   }
 
   function repeatOrder(order: OrderRecord) {
@@ -811,8 +867,8 @@ export function App() {
     case 'discover': page = <DiscoverPage mood={location.params.get('mood')} />; break
     case 'restaurant': page = <RestaurantPage restaurant={restaurant} saved={favorites.includes(restaurant.id)} onToggleSaved={() => setFavorites((current) => current.includes(restaurant.id) ? current.filter((id) => id !== restaurant.id) : [...current, restaurant.id])} />; break
     case 'booking': page = <BookingPage restaurant={restaurant} booking={{ ...booking, restaurantId: restaurant.id }} setBooking={setBooking} source={location.params.get('source')} eventId={location.params.get('event')} />; break
-    case 'booking-details': page = <BookingDetailsPage restaurant={restaurant} booking={{ ...booking, restaurantId: restaurant.id }} setBooking={setBooking} source={location.params.get('source')} eventId={location.params.get('event')} />; break
-    case 'booking-success': page = <BookingSuccessPage restaurant={restaurant} booking={booking} source={location.params.get('source')} eventId={location.params.get('event')} />; break
+    case 'booking-details': page = <BookingDetailsPage restaurant={restaurant} booking={{ ...booking, restaurantId: restaurant.id }} setBooking={setBooking} saveBooking={saveBooking} source={location.params.get('source')} eventId={location.params.get('event')} />; break
+    case 'booking-success': page = <BookingSuccessPage record={bookings.find((record) => record.id === location.params.get('id') && record.restaurantId === restaurant.id)} onEdit={editBooking} />; break
     case 'events': page = <EventsPage />; break
     case 'event': page = <EventPage id={location.params.get('id')} />; break
     case 'menu': page = <MenuPage restaurant={restaurant} mode={location.params.get('mode')} category={location.params.get('category')} />; break
@@ -822,7 +878,7 @@ export function App() {
     case 'payment-error': page = carts[restaurant.id].length && paymentErrorActive ? <PaymentErrorPage restaurant={restaurant} total={cartTotal(carts[restaurant.id])} time={location.params.get('time')} addressId={location.params.get('address')} /> : <UnavailableOrderPage restaurant={restaurant} reason="Оплата не начиналась" />; break
     case 'order-success': page = <OrderSuccessPage restaurant={restaurant} order={orders.find((order) => order.id === location.params.get('id'))} clearCart={() => setCarts((current) => ({ ...current, [restaurant.id]: [] }))} />; break
     case 'loyalty': page = <LoyaltyPage />; break
-    case 'history': page = <HistoryPage orders={orders} repeatOrder={repeatOrder} />; break
+    case 'history': page = <HistoryPage orders={orders} bookings={bookings} repeatOrder={repeatOrder} />; break
     case 'profile': page = <ProfilePage />; break
     case 'favorites': page = <FavoritesPage favorites={favorites} />; break
     default: page = <HomePage />
